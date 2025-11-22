@@ -18,7 +18,7 @@ import {
   View
 } from "react-native";
 import { RootStackParamList } from "../../app/(tabs)";
-import { useCarrinho } from "../context/CarrinhoContext"; // << USO DO CONTEXTO
+import { useCarrinho } from "../context/CarrinhoContext";
 import { auth, database } from "../services/connectionFirebase";
 
 type NavigationProps = StackNavigationProp<RootStackParamList, "Dashboard">;
@@ -71,7 +71,8 @@ export default function DashboardScreen() {
   const { carrinho } = useCarrinho(); 
   const carrinhoCount = carrinho.length;
   
-  const [summary, setSummary] = useState({ tanks: 0, lots: 0, peixes: 0, pedidos: 0 });
+  // Incluindo contagem de clientes
+  const [summary, setSummary] = useState({ tanks: 0, lots: 0, peixes: 0, pedidos: 0, clientes: 0 });
   const [orders, setOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -83,7 +84,7 @@ export default function DashboardScreen() {
   const cardsAnim = useRef(new Animated.Value(30)).current;
   const statsAnim = useRef(new Animated.Value(0)).current;
 
-  // ==================== EFFECTS (MANTIDOS) ====================
+  // ==================== EFFECTS (MODIFICADO) ====================
   useEffect(() => {
     if (!user) return;
     
@@ -91,10 +92,14 @@ export default function DashboardScreen() {
     const lotsRef = ref(database, `users/${user.uid}/lots`);
     const peixesRef = ref(database, `users/${user.uid}/peixes`);
     const ordersRef = ref(database, `users/${user.uid}/orders`);
+    // NOVO: Referência para clientes
+    const clientesRef = ref(database, `users/${user.uid}/clientes`);
 
     const unsubTanks = onValue(tanksRef, s => setSummary(p => ({ ...p, tanks: s.exists() ? Object.keys(s.val()).length : 0 })));
     const unsubLots = onValue(lotsRef, s => setSummary(p => ({ ...p, lots: s.exists() ? Object.keys(s.val()).length : 0 })));
     const unsubPeixes = onValue(peixesRef, s => setSummary(p => ({ ...p, peixes: s.exists() ? Object.keys(s.val()).length : 0 })));
+    // NOVO: Contagem de clientes
+    const unsubClientes = onValue(clientesRef, s => setSummary(p => ({ ...p, clientes: s.exists() ? Object.keys(s.val()).length : 0 })));
     
     const unsubOrders = onValue(ordersRef, snapshot => {
         const data = snapshot.val();
@@ -115,6 +120,7 @@ export default function DashboardScreen() {
       unsubLots();
       unsubPeixes();
       unsubOrders();
+      unsubClientes(); // Limpeza do efeito de clientes
     };
   }, [user]);
 
@@ -445,7 +451,7 @@ export default function DashboardScreen() {
             </View>
             
             <View style={styles.headerRightButtons}>
-                {/* NOVO BOTÃO DE CARRINHO */}
+                {/* BOTÃO DE CARRINHO */}
                 <Pressable 
                   style={({ pressed }) => [
                     styles.modernHeaderButton,
@@ -586,10 +592,18 @@ export default function DashboardScreen() {
                 value={summary.peixes} 
                 onPress={() => navigateTo("Peixes")} 
               />
+              {/* NOVO: CARD PARA CADASTRO DE CLIENTES */}
+              <ActionCard 
+                title="Clientes" 
+                icon="people-outline" 
+                gradient={['#F59E0B', '#D97706']} 
+                value={summary.clientes} 
+                onPress={() => navigateTo("Clientes")} 
+              />
               <ActionCard 
                 title="Alimentação" 
                 icon="restaurant" 
-                gradient={['#F59E0B', '#D97706']} 
+                gradient={['#22C55E', '#16A34A']} 
                 onPress={() => navigateTo("Alimentacao")} 
               />
               <ActionCard 
@@ -714,7 +728,7 @@ export default function DashboardScreen() {
                       title="Perfil" 
                       onPress={() => navigateTo("Perfil", { userId: user?.uid })} 
                     />
-                     <MenuItem // << NOVO ITEM DE MENU
+                     <MenuItem 
                       icon="cart" 
                       title="Carrinho de Vendas" 
                       badge={carrinhoCount} 
@@ -742,6 +756,13 @@ export default function DashboardScreen() {
                       title="Espécies" 
                       badge={summary.peixes} 
                       onPress={() => navigateTo("Peixes")} 
+                    />
+                    {/* NOVO: MENU ITEM PARA CLIENTES */}
+                    <MenuItem 
+                      icon="people-outline" 
+                      title="Clientes" 
+                      badge={summary.clientes} 
+                      onPress={() => navigateTo("Clientes")} 
                     />
                     <MenuItem 
                       icon="restaurant" 
@@ -957,6 +978,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 50,
+    flexGrow: 1, // Permite a rolagem completa no PC/Web
   },
   
   modernGreetingSection: {

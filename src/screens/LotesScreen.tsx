@@ -17,7 +17,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Lote, Peixe, Tanque } from "../../app/(tabs)";
+// IMPORTAÇÕES ADICIONAIS: CarrinhoItem e useCarrinho
+import { CarrinhoItem, Lote, Peixe, Tanque } from "../../app/(tabs)";
+import { useCarrinho } from '../context/CarrinhoContext'; // Importar hook do carrinho
 import { auth, database } from "../services/connectionFirebase";
 
 const { width } = Dimensions.get('window');
@@ -174,10 +176,12 @@ const LoteForm = memo(({
   );
 });
 
-const LoteCard = memo(({ item, onEdit, onDelete }: { 
+// LoteCard agora aceita uma função onSell
+const LoteCard = memo(({ item, onEdit, onDelete, onSell }: { 
   item: Lote; 
   onEdit: (lote: Lote) => void; 
   onDelete: (lote: Lote) => void; 
+  onSell: (lote: Lote) => void; // <-- NOVO: Ação de Vender
 }) => {
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -263,6 +267,12 @@ const LoteCard = memo(({ item, onEdit, onDelete }: {
       </View>
 
       <View style={styles.cardActions}>
+        {/* NOVO BOTÃO DE VENDER */}
+        <Pressable style={[styles.actionButton, styles.sellButton]} onPress={() => onSell(item)}>
+          <Ionicons name="cart-outline" size={16} color="#fff" />
+          <Text style={styles.actionButtonText}>Vender</Text>
+        </Pressable>
+
         <Pressable style={[styles.actionButton, styles.editButton]} onPress={() => onEdit(item)}>
           <Ionicons name="create-outline" size={16} color="#fff" />
           <Text style={styles.actionButtonText}>Editar</Text>
@@ -284,12 +294,21 @@ export default function LotesScreen() {
   const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
 
+  // NOVO: Hook do Carrinho
+  const { adicionarItem } = useCarrinho();
+
   // Estados para Modais
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [tanqueModalVisible, setTanqueModalVisible] = useState(false);
   const [especieModalVisible, setEspecieModalVisible] = useState(false);
+  // NOVOS ESTADOS PARA VENDA
+  const [isSellingModalVisible, setIsSellingModalVisible] = useState(false);
+  const [loteToSell, setLoteToSell] = useState<Lote | null>(null);
+  const [saleQuantityKg, setSaleQuantityKg] = useState('');
+  const [salePriceKg, setSalePriceKg] = useState('');
+  const [isProcessingSale, setIsProcessingSale] = useState(false);
 
   // Estados para Dados
   const [currentLote, setCurrentLote] = useState<Lote | null>(null);
@@ -383,6 +402,14 @@ export default function LotesScreen() {
     setCurrentLote(lote);
     setPasswordInput('');
     setIsDeleteModalVisible(true);
+  };
+  
+  // NOVA FUNÇÃO: Abre o modal de venda
+  const openSellModal = (lote: Lote) => {
+    setLoteToSell(lote);
+    setSaleQuantityKg('');
+    setSalePriceKg('');
+    setIsSellingModalVisible(true);
   };
 
   const handleSelectTanque = (tanque: Tanque) => {
@@ -482,12 +509,48 @@ export default function LotesScreen() {
       Alert.alert("Erro", "Não foi possível excluir o lote."); 
     }
   };
+  
+  // NOVA FUNÇÃO: Adiciona item ao carrinho
+  const handleSellLote = () => {
+    if (!loteToSell || !saleQuantityKg || !salePriceKg) {
+        return Alert.alert("Atenção", "Preencha a quantidade em Kg e o preço.");
+    }
 
+    const quantidadeKg = parseFloat(saleQuantityKg.replace(',', '.'));
+    const precoUnitarioKg = parseFloat(salePriceKg.replace(',', '.'));
+
+    if (isNaN(quantidadeKg) || quantidadeKg <= 0 || isNaN(precoUnitarioKg) || precoUnitarioKg <= 0) {
+        return Alert.alert("Erro", "Quantidade e Preço devem ser números positivos válidos.");
+    }
+    
+    // Constrói o item no formato esperado pelo CarrinhoContext
+    const newItem: Omit<CarrinhoItem, 'id'> = {
+        loteId: loteToSell.id,
+        loteNome: loteToSell.nomeLote,
+        produtoNome: loteToSell.especie, // Usa a espécie como nome do produto
+        quantidadeKg: quantidadeKg,
+        precoUnitarioKg: precoUnitarioKg,
+    };
+
+    try {
+        setIsProcessingSale(true);
+        adicionarItem(newItem); // Chama a função do Contexto
+        setIsSellingModalVisible(false);
+    } catch (error) {
+        Alert.alert("Erro", "Falha ao adicionar ao carrinho.");
+    } finally {
+        setIsProcessingSale(false);
+    }
+  };
+
+
+  // Render Item agora passa a função onSell
   const renderItem: ListRenderItem<Lote> = ({ item }) => (
     <LoteCard 
       item={item} 
       onEdit={openEditModal}
       onDelete={openDeleteModal}
+      onSell={openSellModal} // <-- NOVO
     />
   );
 
@@ -534,7 +597,7 @@ export default function LotesScreen() {
         />
       )}
 
-      {/* MODAL ADICIONAR/EDITAR LOTE */}
+      {/* MODAL ADICIONAR/EDITAR LOTE (EXISTENTE) */}
       <Modal visible={isAddModalVisible || isEditModalVisible} animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
@@ -576,7 +639,7 @@ export default function LotesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* MODAL EXCLUIR LOTE */}
+      {/* MODAL EXCLUIR LOTE (EXISTENTE) */}
       <Modal visible={isDeleteModalVisible} transparent animationType="fade">
         <View style={styles.centeredModal}>
           <View style={styles.deleteModalContent}>
@@ -620,7 +683,7 @@ export default function LotesScreen() {
         </View>
       </Modal>
 
-      {/* MODAL SELECIONAR TANQUE */}
+      {/* MODAL SELECIONAR TANQUE (EXISTENTE) */}
       <Modal visible={tanqueModalVisible} animationType="slide" transparent>
         <View style={styles.centeredModal}>
           <View style={styles.selectionModalContent}>
@@ -659,7 +722,7 @@ export default function LotesScreen() {
         </View>
       </Modal>
 
-      {/* MODAL SELECIONAR ESPÉCIE */}
+      {/* MODAL SELECIONAR ESPÉCIE (EXISTENTE) */}
       <Modal visible={especieModalVisible} animationType="slide" transparent>
         <View style={styles.centeredModal}>
           <View style={styles.selectionModalContent}>
@@ -694,6 +757,71 @@ export default function LotesScreen() {
                 <Text style={styles.emptySelectionText}>Nenhuma espécie cadastrada.</Text>
               }
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* NOVO MODAL: VENDER LOTE */}
+      <Modal visible={isSellingModalVisible} transparent animationType="fade">
+        <View style={styles.centeredModal}>
+          <View style={[styles.selectionModalContent, styles.sellModalContent]}>
+            <View style={styles.selectionHeader}>
+              <Text style={styles.selectionTitle}>Adicionar à Venda</Text>
+              <Pressable onPress={() => setIsSellingModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </Pressable>
+            </View>
+            <View style={styles.modalBody}>
+                <Text style={styles.saleText}>
+                  Adicionando <Text style={styles.saleHighlight}>{loteToSell?.nomeLote} - {loteToSell?.especie}</Text> à lista de vendas.
+                </Text>
+                
+                <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Quantidade (Kg) *</Text>
+                    <TextInput 
+                      style={styles.input} 
+                      placeholder="Ex: 50.5" 
+                      value={saleQuantityKg} 
+                      onChangeText={setSaleQuantityKg} 
+                      keyboardType="numeric" 
+                    />
+                </View>
+                
+                <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Preço Unitário (R$/Kg) *</Text>
+                    <TextInput 
+                      style={styles.input} 
+                      placeholder="Ex: 12.00" 
+                      value={salePriceKg} 
+                      onChangeText={setSalePriceKg} 
+                      keyboardType="numeric" 
+                    />
+                </View>
+
+                <View style={styles.deleteActions}>
+                  <Pressable 
+                    style={[
+                        styles.confirmSellButton, 
+                        (!saleQuantityKg || !salePriceKg || isProcessingSale) && styles.buttonDisabled
+                    ]}
+                    onPress={handleSellLote}
+                    disabled={!saleQuantityKg || !salePriceKg || isProcessingSale}
+                  >
+                    {isProcessingSale ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <Ionicons name="cart" size={18} color="#fff" />
+                    )}
+                    <Text style={styles.confirmDeleteText}>Adicionar à Venda</Text>
+                  </Pressable>
+                  <Pressable 
+                    style={styles.cancelDeleteButton}
+                    onPress={() => setIsSellingModalVisible(false)}
+                  >
+                    <Text style={styles.cancelDeleteText}>Cancelar</Text>
+                  </Pressable>
+                </View>
+            </View>
           </View>
         </View>
       </Modal>
@@ -894,6 +1022,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 6,
   },
+  // NOVO ESTILO: Botão Vender
+  sellButton: {
+    backgroundColor: '#10B981', // Verde para Venda/Carrinho
+  },
   editButton: {
     backgroundColor: '#0EA5E9',
   },
@@ -1078,7 +1210,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Selection Modals
+  // Selection Modals (reutilizado para venda)
   selectionModalContent: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -1129,5 +1261,34 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 16,
     padding: 40,
+  },
+  
+  // NOVOS ESTILOS para o Modal de Venda
+  sellModalContent: {
+    maxHeight: 'auto', 
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  saleText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  saleHighlight: {
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  confirmSellButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981', // Cor verde de Venda
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
   },
 });

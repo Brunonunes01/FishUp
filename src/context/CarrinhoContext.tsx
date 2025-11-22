@@ -1,8 +1,7 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react';
 import { Alert } from 'react-native';
-// Caminho de importação do tipo para garantir que seja encontrado
-import { nanoid } from 'nanoid';
-import { CarrinhoItem } from '../../app/(tabs)/index';
+// REMOVIDO: import { nanoid } from 'nanoid'; // Dependência que estava causando erro
+import { CarrinhoItem } from '../../app/(tabs)/index'; // Importação do tipo CarrinhoItem
 
 // --- Tipos ---
 interface CarrinhoContextData {
@@ -23,6 +22,7 @@ export const CarrinhoProvider = ({ children }: { children: ReactNode }) => {
   const total = carrinho.reduce((sum, item) => sum + (item.quantidadeKg * item.precoUnitarioKg), 0);
 
   const adicionarItem = (item: Omit<CarrinhoItem, 'id'>) => {
+    // Validação de segurança já presente
     if (!item.quantidadeKg || item.quantidadeKg <= 0 || !item.precoUnitarioKg || item.precoUnitarioKg <= 0) {
       Alert.alert("Erro", "Quantidade e preço por Kg devem ser maiores que zero.");
       return;
@@ -30,7 +30,8 @@ export const CarrinhoProvider = ({ children }: { children: ReactNode }) => {
     
     const novoItem: CarrinhoItem = {
       ...item,
-      id: nanoid(), // Gera um ID único para o item do carrinho
+      // NOVO ID: Usa o timestamp e um número aleatório para gerar um ID único e seguro para o front-end
+      id: Date.now().toString() + Math.random().toString(), 
     };
 
     setCarrinho(prev => [...prev, novoItem]);

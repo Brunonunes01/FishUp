@@ -5,6 +5,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { CarrinhoProvider } from '../../src/context/CarrinhoContext';
 import { auth } from '../../src/services/connectionFirebase';
 
 // TELAS
@@ -22,9 +23,11 @@ import PeixesScreen from '../../src/screens/PeixesScreen';
 import PerfilScreen from '../../src/screens/PerfilScreen';
 import TanquesScreen from '../../src/screens/TanquesScreen';
 import PlaceholderScreen from '../../src/screens/TelaPlaceholder';
+// NOVO: Importar a tela de Clientes
+import ClientesScreen from '../../src/screens/ClientesScreen';
 
 // =====================================================================
-// TIPOS (os mesmos que você já tinha – mantive tudo)
+// TIPOS (o tipo Cliente foi corrigido)
 // =====================================================================
 
 export type Tanque = {
@@ -201,6 +204,7 @@ export type Cliente = {
   dataCadastro: string;
   pedidosRealizados: number;
   valorTotalComprado: number;
+  updatedAt?: string; // <<--- CORREÇÃO APLICADA AQUI
 };
 
 export type Fornecedor = {
@@ -266,6 +270,7 @@ export type RootStackParamList = {
   ListaUsuarios: undefined;
   Pedidos: undefined;
   Carrinho: undefined;
+  Clientes: undefined; // NOVO: Adiciona a tela de Clientes
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -311,6 +316,7 @@ function AppStack() {
       <Stack.Screen name="ListaUsuarios" component={ListaUsuarios} />
       <Stack.Screen name="Pedidos" component={PedidosScreen} />
       <Stack.Screen name="Carrinho" component={CarrinhoScreen} />
+      <Stack.Screen name="Clientes" component={ClientesScreen} /> 
     </Stack.Navigator>
   );
 }
@@ -347,5 +353,12 @@ export default function RootStack() {
     );
   }
 
-  return user ? <AppStack /> : <AuthStack />;
+  // Envolver AppStack com CarrinhoProvider
+  return user ? (
+    <CarrinhoProvider>
+      <AppStack />
+    </CarrinhoProvider>
+  ) : (
+    <AuthStack />
+  );
 }

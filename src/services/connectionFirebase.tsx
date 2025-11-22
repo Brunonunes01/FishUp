@@ -1,8 +1,15 @@
 // services/connectionFirebase.tsx
 
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+// Importar getReactNativePersistence, initializeAuth E getAuth
+import {
+  getAuth,
+  getReactNativePersistence,
+  initializeAuth
+} from "firebase/auth";
 import { getDatabase } from "firebase/database";
+// Importar o módulo de armazenamento seguro do Expo
+import * as SecureStore from "expo-secure-store";
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -15,11 +22,59 @@ const firebaseConfig = {
   appId: "1:758916070691:web:ce934ac8c5469a2083a096",
 };
 
+// Objeto Wrapper FINAL: Mapeia a API do Firebase para o SecureStore,
+// limpa as chaves problemáticas E verifica se a chave resultante é vazia.
+const SecureStoreWrapper = {
+    // Função para limpar a chave, substituindo caracteres inválidos (como ':') por '_'
+    cleanKey: (key: string) => key.replace(/[^a-zA-Z0-9.\-_]/g, '_'),
+
+    // Firebase espera 'setItem', mas SecureStore tem 'setItemAsync'
+    setItem: (key: string, value: string) => {
+        const cleanKey = SecureStoreWrapper.cleanKey(key);
+        
+        // CORREÇÃO: Evita chamar SecureStore com uma chave vazia
+        if (!cleanKey) return Promise.resolve();
+        
+        return SecureStore.setItemAsync(cleanKey, value);
+    },
+    
+    // Firebase espera 'getItem', mas SecureStore tem 'getItemAsync'
+    getItem: (key: string) => {
+        const cleanKey = SecureStoreWrapper.cleanKey(key);
+        
+        // CORREÇÃO: Evita chamar SecureStore com uma chave vazia
+        if (!cleanKey) return Promise.resolve(null);
+        
+        return SecureStore.getItemAsync(cleanKey);
+    },
+    
+    // Firebase espera 'removeItem', mas SecureStore tem 'deleteItemAsync'
+    removeItem: (key: string) => {
+        const cleanKey = SecureStoreWrapper.cleanKey(key);
+        
+        // CORREÇÃO: Evita chamar SecureStore com uma chave vazia
+        if (!cleanKey) return Promise.resolve();
+        
+        return SecureStore.deleteItemAsync(cleanKey);
+    },
+};
+
 // Inicializa o app
 const app = initializeApp(firebaseConfig);
 
-// Auth (sem persistência customizada)
-export const auth = getAuth(app);
+let authInstance;
+// 1. CORREÇÃO DE INICIALIZAÇÃO: Usa try/catch para evitar o erro 'auth/already-initialized'
+try {
+    authInstance = initializeAuth(app, {
+        persistence: getReactNativePersistence(SecureStoreWrapper),
+    });
+} catch (e) {
+    // Se a inicialização falhar (porque já foi inicializado),
+    // apenas pegamos a instância existente.
+    authInstance = getAuth(app);
+}
+
+export const auth = authInstance;
 
 // Realtime Database
 export const database = getDatabase(app);
