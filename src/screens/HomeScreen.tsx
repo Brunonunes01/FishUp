@@ -1,6 +1,5 @@
 import { StackNavigationProp } from "@react-navigation/stack";
-// Import 'Component' e remove hooks desnecessários (useRef, useEffect, useNavigation)
-import React, { Component } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Dimensions,
@@ -17,204 +16,190 @@ import { RootStackParamList } from "../../app/(tabs)";
 
 const { width, height } = Dimensions.get("window");
 
-// Define a interface de Props para o componente de classe
+// Define a interface de Props para o componente de função
 type NavigationProps = StackNavigationProp<RootStackParamList, "Home">;
 interface Props {
   navigation: NavigationProps;
 }
 
-// O estado pode estar vazio se não houver estado reativo (animações são propriedades)
-interface State {}
-
-// Altera de 'function HomeScreen()' para 'class Fiship'
-export default class Fiship extends Component<Props, State> {
+// O componente agora é uma função, exportado como HomeScreen
+export default function HomeScreen({ navigation }: Props) {
   
-  // Animações agora são propriedades da classe
-  // Remove 'useRef' e '.current'
-  fadeAnim = new Animated.Value(0);
-  slideAnim = new Animated.Value(30);
-  scaleAnim = new Animated.Value(0.9);
+  // Animações agora usam useRef
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
-  // 'useEffect' é substituído por 'componentDidMount'
-  componentDidMount() {
+  // Lógica de animação usando useEffect (Substitui o componentDidMount)
+  useEffect(() => {
     Animated.parallel([
-      Animated.timing(this.fadeAnim, { // Usa 'this.fadeAnim'
+      Animated.timing(fadeAnim, { 
         toValue: 1,
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.spring(this.slideAnim, { // Usa 'this.slideAnim'
+      Animated.spring(slideAnim, { 
         toValue: 0,
         tension: 50,
         friction: 7,
         useNativeDriver: true,
       }),
-      Animated.spring(this.scaleAnim, { // Usa 'this.scaleAnim'
+      Animated.spring(scaleAnim, { 
         toValue: 1,
         tension: 50,
         friction: 7,
         useNativeDriver: true,
       }),
     ]).start();
-  }
+  }, [fadeAnim, slideAnim, scaleAnim]);
 
-  // A lógica de renderização vai para dentro do método 'render()'
-  render() {
-    // Acesso à navegação via 'this.props'
-    const { navigation } = this.props;
-    
-    // Acesso às animações via 'this'
-    const { fadeAnim, slideAnim, scaleAnim } = this;
-
-    return (
-      <>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <ImageBackground 
-          // ... (mesmos props de antes)
-          source={require('../../assets/images/logo.jpg')}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-          blurRadius={2}
+  // A lógica de renderização é o retorno da função
+  return (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <ImageBackground 
+        source={require('../../assets/images/logo.jpg')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+        blurRadius={2}
+      >
+        {/* Gradiente overlay */}
+        <View style={styles.gradientOverlay} />
+        <View style={styles.gradientTop} />
+        
+        {/* Elementos flutuantes decorativos */}
+        <View style={styles.floatingCircle1} />
+        <View style={styles.floatingCircle2} />
+        
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          {/* Gradiente overlay */}
-          <View style={styles.gradientOverlay} />
-          <View style={styles.gradientTop} />
-          
-          {/* Elementos flutuantes decorativos */}
-          <View style={styles.floatingCircle1} />
-          <View style={styles.floatingCircle2} />
-          
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+          <Animated.View 
+            style={[
+              styles.container,
+              {
+                opacity: fadeAnim, 
+                transform: [
+                  { translateY: slideAnim }, 
+                  { scale: scaleAnim } 
+                ],
+              }
+            ]}
           >
-            <Animated.View 
-              style={[
-                styles.container,
-                {
-                  opacity: fadeAnim, // Remove '.current'
-                  transform: [
-                    { translateY: slideAnim }, // Remove '.current'
-                    { scale: scaleAnim } // Remove '.current'
-                  ],
-                }
-              ]}
-            >
-              {/* Card principal compacto */}
-              <View style={styles.card}>
-                
-                {/* Logo otimizado */}
-                <View style={styles.logoContainer}>
-                  <View style={styles.logoGlow} />
-                  <Image 
-                    source={{ uri: "https://cdn-icons-png.flaticon.com/512/3079/3079165.png" }}
-                    style={styles.logoImage}
-                    resizeMode="contain"
-                  />
-                </View>
-  
-                {/* Badge "Novo" */}
-                <View style={styles.newBadge}>
-                  <Text style={styles.newBadgeText}>NOVO</Text>
-                </View>
-  
-                {/* Título compacto */}
-                <Text style={styles.welcomeText}>Bem-vindo ao</Text>
-                <Text style={styles.title}>
-                  <Text style={styles.brand}>Fish</Text>
-                  <Text style={styles.brandAccent}>Up</Text>
-                </Text>
-  
-                <View style={styles.dividerContainer}>
-                  <View style={styles.dividerDot} />
-                  <View style={styles.divider} />
-                  <View style={styles.dividerDot} />
-                </View>
-  
-                {/* Descrição condensada */}
-                <Text style={styles.subtitle}>Gestão Inteligente de Piscicultura</Text>
-                <Text style={styles.description}>
-                  Controle completo da sua produção aquícola com tecnologia de ponta.
-                </Text>
-  
-                {/* Features em grid compacto 2x2 */}
-                <View style={styles.features}>
-                  <View style={styles.featureRow}>
-                    <View style={styles.featureCard}>
-                      <View style={[styles.iconContainer, styles.iconBlue]}>
-                        <Text style={styles.featureEmoji}>🐠</Text>
-                      </View>
-                      <Text style={styles.featureTitle}>Tanques</Text>
-                      <Text style={styles.featureDesc}>Monitoramento real</Text>
+            {/* Card principal compacto */}
+            <View style={styles.card}>
+              
+              {/* Logo otimizado */}
+              <View style={styles.logoContainer}>
+                <View style={styles.logoGlow} />
+                <Image 
+                  source={{ uri: "https://cdn-icons-png.flaticon.com/512/3079/3079165.png" }}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+              {/* Badge "Novo" */}
+              <View style={styles.newBadge}>
+                <Text style={styles.newBadgeText}>NOVO</Text>
+              </View>
+
+              {/* Título compacto */}
+              <Text style={styles.welcomeText}>Bem-vindo ao</Text>
+              <Text style={styles.title}>
+                <Text style={styles.brand}>Fish</Text>
+                <Text style={styles.brandAccent}>Up</Text>
+              </Text>
+
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerDot} />
+                <View style={styles.divider} />
+                <View style={styles.dividerDot} />
+              </View>
+
+              {/* Descrição condensada */}
+              <Text style={styles.subtitle}>Gestão Inteligente de Piscicultura</Text>
+              <Text style={styles.description}>
+                Controle completo da sua produção aquícola com tecnologia de ponta.
+              </Text>
+
+              {/* Features em grid compacto 2x2 */}
+              <View style={styles.features}>
+                <View style={styles.featureRow}>
+                  <View style={styles.featureCard}>
+                    <View style={[styles.iconContainer, styles.iconBlue]}>
+                      <Text style={styles.featureEmoji}>🐠</Text>
                     </View>
-  
-                    <View style={styles.featureCard}>
-                      <View style={[styles.iconContainer, styles.iconGreen]}>
-                        <Text style={styles.featureEmoji}>📈</Text>
-                      </View>
-                      <Text style={styles.featureTitle}>Lotes</Text>
-                      <Text style={styles.featureDesc}>Gestão de estoque</Text>
-                    </View>
+                    <Text style={styles.featureTitle}>Tanques</Text>
+                    <Text style={styles.featureDesc}>Monitoramento real</Text>
                   </View>
-  
-                  <View style={styles.featureRow}>
-                    <View style={styles.featureCard}>
-                      <View style={[styles.iconContainer, styles.iconPurple]}>
-                        <Text style={styles.featureEmoji}>🍽️</Text>
-                      </View>
-                      <Text style={styles.featureTitle}>Alimentação</Text>
-                      <Text style={styles.featureDesc}>Programação auto</Text>
+
+                  <View style={styles.featureCard}>
+                    <View style={[styles.iconContainer, styles.iconGreen]}>
+                      <Text style={styles.featureEmoji}>📈</Text>
                     </View>
-  
-                    <View style={styles.featureCard}>
-                      <View style={[styles.iconContainer, styles.iconOrange]}>
-                        <Text style={styles.featureEmoji}>📊</Text>
-                      </View>
-                      <Text style={styles.featureTitle}>Relatórios</Text>
-                      <Text style={styles.featureDesc}>Análises detalhadas</Text>
-                    </View>
+                    <Text style={styles.featureTitle}>Lotes</Text>
+                    <Text style={styles.featureDesc}>Gestão de estoque</Text>
                   </View>
                 </View>
-  
-                {/* Botão CTA */}
-                <Pressable
-                  android_ripple={{ color: "rgba(255,255,255,0.3)" }}
-                  style={({ pressed }) => [
-                    styles.pressable, 
-                    pressed && styles.pressed
-                  ]}
-                  // Usa 'navigation' obtido de 'this.props'
-                  onPress={() => navigation.navigate("Login")} 
-                >
-                  <View style={styles.button}>
-                    <View style={styles.buttonGradient} />
-                    <Text style={styles.buttonText}>Começar Agora</Text>
-                    <View style={styles.buttonIconContainer}>
-                      <Text style={styles.buttonIcon}>→</Text>
+
+                <View style={styles.featureRow}>
+                  <View style={styles.featureCard}>
+                    <View style={[styles.iconContainer, styles.iconPurple]}>
+                      <Text style={styles.featureEmoji}>🍽️</Text>
                     </View>
+                    <Text style={styles.featureTitle}>Alimentação</Text>
+                    <Text style={styles.featureDesc}>Programação auto</Text>
                   </View>
-                </Pressable>
-  
-                {/* Info footer do card */}
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoText}>✓ Gratuito</Text>
-                  <View style={styles.infoDivider} />
-                  <Text style={styles.infoText}>✓ Sem cartão</Text>
+
+                  <View style={styles.featureCard}>
+                    <View style={[styles.iconContainer, styles.iconOrange]}>
+                      <Text style={styles.featureEmoji}>📊</Text>
+                    </View>
+                    <Text style={styles.featureTitle}>Relatórios</Text>
+                    <Text style={styles.featureDesc}>Análises detalhadas</Text>
+                  </View>
                 </View>
               </View>
-  
-              {/* Footer externo */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                  🌊 Tecnologia de ponta para aquicultura sustentável
-                </Text>
+
+              {/* Botão CTA */}
+              <Pressable
+                android_ripple={{ color: "rgba(255,255,255,0.3)" }}
+                style={({ pressed }) => [
+                  styles.pressable, 
+                  pressed && styles.pressed
+                ]}
+                onPress={() => navigation.navigate("Login")} 
+              >
+                <View style={styles.button}>
+                  <View style={styles.buttonGradient} />
+                  <Text style={styles.buttonText}>Começar Agora</Text>
+                  <View style={styles.buttonIconContainer}>
+                    <Text style={styles.buttonIcon}>→</Text>
+                  </View>
+                </View>
+              </Pressable>
+
+              {/* Info footer do card */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoText}>✓ Gratuito</Text>
+                <View style={styles.infoDivider} />
+                <Text style={styles.infoText}>✓ Sem cartão</Text>
               </View>
-            </Animated.View>
-          </ScrollView>
-        </ImageBackground>
-      </>
-    );
-  }
+            </View> {/* Fim do View styles.card */}
+
+            {/* Footer externo */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                🌊 Tecnologia de ponta para aquicultura sustentável
+              </Text>
+            </View>
+          </Animated.View> {/* Fim do Animated.View styles.container */}
+        </ScrollView> {/* Fim do ScrollView */}
+      </ImageBackground> {/* Fim do ImageBackground */}
+    </>
+  );
 }
 
 // Os estilos permanecem exatamente os mesmos

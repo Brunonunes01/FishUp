@@ -1,4 +1,4 @@
-import { FontAwesome5, Ionicons } from '@expo/vector-icons'; // <-- 1. MODIFICADO
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { onValue, ref } from "firebase/database";
@@ -18,13 +18,14 @@ import {
   View
 } from "react-native";
 import { RootStackParamList } from "../../app/(tabs)";
+import { useCarrinho } from "../context/CarrinhoContext"; // << USO DO CONTEXTO
 import { auth, database } from "../services/connectionFirebase";
 
 type NavigationProps = StackNavigationProp<RootStackParamList, "Dashboard">;
 
 const { width, height } = Dimensions.get('window');
 
-// ==================== INTERFACES ====================
+// ==================== INTERFACES (MANTIDAS) ====================
 interface Order {
   id: string;
   cliente: string;
@@ -42,7 +43,7 @@ interface ActionCardProps {
   onPress: () => void;
   gradient: string[];
   value?: number;
-  iconFamily?: string; // <-- 2. ADICIONADO
+  iconFamily?: string;
 }
 
 interface QuickStatProps {
@@ -50,7 +51,7 @@ interface QuickStatProps {
   value: number | string;
   icon: any;
   color: string;
-  iconFamily?: string; // <-- 2. ADICIONADO
+  iconFamily?: string;
 }
 
 interface MenuItemProps {
@@ -58,13 +59,17 @@ interface MenuItemProps {
   title: string;
   onPress: () => void;
   badge?: number;
-  iconFamily?: string; // <-- 2. ADICIONADO
+  iconFamily?: string;
 }
 
 // ==================== COMPONENTE PRINCIPAL ====================
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProps>();
   const user = auth.currentUser;
+  
+  // HOOK DO CARRINHO
+  const { carrinho } = useCarrinho(); 
+  const carrinhoCount = carrinho.length;
   
   const [summary, setSummary] = useState({ tanks: 0, lots: 0, peixes: 0, pedidos: 0 });
   const [orders, setOrders] = useState<Order[]>([]);
@@ -78,7 +83,7 @@ export default function DashboardScreen() {
   const cardsAnim = useRef(new Animated.Value(30)).current;
   const statsAnim = useRef(new Animated.Value(0)).current;
 
-  // ==================== EFFECTS ====================
+  // ==================== EFFECTS (MANTIDOS) ====================
   useEffect(() => {
     if (!user) return;
     
@@ -147,9 +152,8 @@ export default function DashboardScreen() {
     }, 1500);
   }, []);
 
-  // ==================== COMPONENTES ====================
+  // ==================== COMPONENTES (MANTIDOS) ====================
   
-  // <-- 3.A COMPONENTE MODIFICADO -->
   const ActionCard = ({ title, icon, onPress, gradient, value, iconFamily = 'Ionicons' }: ActionCardProps) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -217,7 +221,6 @@ export default function DashboardScreen() {
     );
   };
 
-  // <-- 3.B COMPONENTE MODIFICADO -->
   const QuickStat = ({ title, value, icon, color, iconFamily = 'Ionicons' }: QuickStatProps) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -274,7 +277,6 @@ export default function DashboardScreen() {
     );
   };
 
-  // <-- 3.C COMPONENTE MODIFICADO -->
   const MenuItem = ({ icon, title, onPress, badge, iconFamily = 'Ionicons' }: MenuItemProps) => {
     const [isPressed, setIsPressed] = useState(false);
     
@@ -442,20 +444,40 @@ export default function DashboardScreen() {
               <Text style={styles.modernHeaderSubtitle}>Gestão Aquícola</Text>
             </View>
             
-            <Pressable 
-              style={({ pressed }) => [
-                styles.modernHeaderButton,
-                pressed && styles.headerButtonPressed
-              ]}
-              onPress={() => navigateTo("Pedidos")}
-            >
-              <Ionicons name="notifications-outline" size={24} color="#fff" />
-              {pendingOrders > 0 && (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>{pendingOrders}</Text>
-                </View>
-              )}
-            </Pressable>
+            <View style={styles.headerRightButtons}>
+                {/* NOVO BOTÃO DE CARRINHO */}
+                <Pressable 
+                  style={({ pressed }) => [
+                    styles.modernHeaderButton,
+                    styles.cartButton,
+                    pressed && styles.headerButtonPressed
+                  ]}
+                  onPress={() => navigateTo("Carrinho")}
+                >
+                  <Ionicons name="cart-outline" size={24} color="#fff" />
+                  {carrinhoCount > 0 && (
+                    <View style={styles.cartBadge}>
+                      <Text style={styles.cartBadgeText}>{carrinhoCount}</Text>
+                    </View>
+                  )}
+                </Pressable>
+                
+                {/* BOTÃO DE NOTIFICAÇÕES */}
+                <Pressable 
+                  style={({ pressed }) => [
+                    styles.modernHeaderButton,
+                    pressed && styles.headerButtonPressed
+                  ]}
+                  onPress={() => navigateTo("Pedidos")}
+                >
+                  <Ionicons name="notifications-outline" size={24} color="#fff" />
+                  {pendingOrders > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText}>{pendingOrders}</Text>
+                    </View>
+                  )}
+                </Pressable>
+            </View>
           </View>
         </Animated.View>
 
@@ -513,7 +535,6 @@ export default function DashboardScreen() {
                 icon="fish" 
                 color="#10B981"
               />
-              {/* <-- 4.A QuickStat MODIFICADO --> */}
               <QuickStat 
                 title="Espécies" 
                 value={summary.peixes} 
@@ -557,7 +578,6 @@ export default function DashboardScreen() {
                 value={summary.lots} 
                 onPress={() => navigateTo("Lotes")} 
               />
-              {/* <-- 4.B ActionCard MODIFICADO --> */}
               <ActionCard 
                 title="Espécies" 
                 icon="dna"
@@ -694,6 +714,12 @@ export default function DashboardScreen() {
                       title="Perfil" 
                       onPress={() => navigateTo("Perfil", { userId: user?.uid })} 
                     />
+                     <MenuItem // << NOVO ITEM DE MENU
+                      icon="cart" 
+                      title="Carrinho de Vendas" 
+                      badge={carrinhoCount} 
+                      onPress={() => navigateTo("Carrinho")} 
+                    />
                   </View>
                   
                   <View style={styles.modernMenuSection}>
@@ -710,7 +736,6 @@ export default function DashboardScreen() {
                       badge={summary.lots} 
                       onPress={() => navigateTo("Lotes")} 
                     />
-                    {/* <-- 4.C MenuItem MODIFICADO --> */}
                     <MenuItem 
                       icon="dna"
                       iconFamily="FontAwesome5"
@@ -774,8 +799,7 @@ export default function DashboardScreen() {
   );
 }
 
-// ==================== STYLES ====================
-// Os estilos permanecem exatamente os mesmos do seu código original.
+// ==================== STYLES (MANTIDOS) ====================
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -836,6 +860,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(14, 165, 233, 0.2)',
+    marginLeft: 8, // Espaço entre os botões da direita
   },
   
   headerButtonPressed: {
@@ -869,6 +894,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
+  },
+  
+  // NOVO: Container para os botões da direita
+  headerRightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  // NOVO: Estilo para o botão do carrinho (mesma base do modernHeaderButton, mas sem margin à esquerda pois já é tratado no estilo base)
+  cartButton: {
+    marginLeft: 0, 
+  },
+
+  // NOVO: Badge para o carrinho
+  cartBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#10B981', // Verde para o carrinho
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#0F172A',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
   },
   
   notificationBadge: {

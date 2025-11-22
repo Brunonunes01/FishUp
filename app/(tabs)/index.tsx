@@ -1,34 +1,40 @@
-import { createStackNavigator } from "@react-navigation/stack";
+// src/navigation/RootStack.tsx (ou o caminho que você estiver usando)
+
+import { createStackNavigator } from '@react-navigation/stack';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-// Importação de todas as telas
-import AlimentacaoScreen from "../../src/screens/AlimentacaoScreen";
-import LoginScreen from "../../src/screens/Auth/LoginScreen";
-import RegisterScreen from "../../src/screens/Auth/RegisterScreen";
-import BiometriaScreen from "../../src/screens/BiometriaScreen";
-import DashboardScreen from "../../src/screens/DashboardScreen";
-import HomeScreen from "../../src/screens/HomeScreen";
-import ListaUsuarios from "../../src/screens/ListaUsuarios";
-import LotesScreen from "../../src/screens/LotesScreen";
-import PedidosScreen from "../../src/screens/PedidosScreen";
-import PeixesScreen from "../../src/screens/PeixesScreen";
-import PerfilScreen from "../../src/screens/PerfilScreen";
-import TanquesScreen from "../../src/screens/TanquesScreen";
-import PlaceholderScreen from "../../src/screens/TelaPlaceholder";
-import { auth } from "../../src/services/connectionFirebase";
+import { auth } from '../../src/services/connectionFirebase';
 
-// --- DEFINIÇÕES DE TIPO ---
+// TELAS
+import AlimentacaoScreen from '../../src/screens/AlimentacaoScreen';
+import LoginScreen from '../../src/screens/Auth/LoginScreen';
+import RegisterScreen from '../../src/screens/Auth/RegisterScreen';
+import BiometriaScreen from '../../src/screens/BiometriaScreen';
+import CarrinhoScreen from '../../src/screens/CarrinhoScreen';
+import DashboardScreen from '../../src/screens/DashboardScreen';
+import HomeScreen from '../../src/screens/HomeScreen';
+import ListaUsuarios from '../../src/screens/ListaUsuarios';
+import LotesScreen from '../../src/screens/LotesScreen';
+import PedidosScreen from '../../src/screens/PedidosScreen';
+import PeixesScreen from '../../src/screens/PeixesScreen';
+import PerfilScreen from '../../src/screens/PerfilScreen';
+import TanquesScreen from '../../src/screens/TanquesScreen';
+import PlaceholderScreen from '../../src/screens/TelaPlaceholder';
+
+// =====================================================================
+// TIPOS (os mesmos que você já tinha – mantive tudo)
+// =====================================================================
 
 export type Tanque = {
-  id: string; 
-  name: string; 
-  location: string; 
+  id: string;
+  name: string;
+  location: string;
   comprimento: number;
-  largura: number; 
-  profundidade: number; 
-  volume: number; 
+  largura: number;
+  profundidade: number;
+  volume: number;
   createdAt?: string;
   updatedAt?: string;
   status?: 'ativo' | 'manutencao' | 'inativo';
@@ -36,12 +42,12 @@ export type Tanque = {
 };
 
 export type Peixe = {
-  id: string; 
-  nomePopular: string; 
-  nomeCientifico: string; 
+  id: string;
+  nomePopular: string;
+  nomeCientifico: string;
   familia: string;
-  temperaturaIdeal: string; 
-  phIdeal: string; 
+  temperaturaIdeal: string;
+  phIdeal: string;
   observacoes?: string;
   oxigenioIdeal?: string;
   salinidadeIdeal?: string;
@@ -50,17 +56,17 @@ export type Peixe = {
 };
 
 export type Lote = {
-  id: string; 
-  nomeLote: string; 
-  especie: string; 
+  id: string;
+  nomeLote: string;
+  especie: string;
   quantidade: number;
   quantidadeInicial: number;
-  fornecedor: string; 
+  fornecedor: string;
   pesoInicialMedio: number;
   comprimentoInicialMedio?: number;
   tanqueId: string;
-  tanqueNome: string; 
-  dataInicio: string; 
+  tanqueNome: string;
+  dataInicio: string;
   observacoes?: string;
   status?: 'ativo' | 'colhido' | 'transferido' | 'doente';
   faseCultivo?: 'alevinagem' | 'recria' | 'engorda' | 'terminacao';
@@ -70,13 +76,13 @@ export type Lote = {
 };
 
 export type AlimentacaoRegistro = {
-  id: string; 
-  data: string; 
-  loteId: string; 
+  id: string;
+  data: string;
+  loteId: string;
   loteNome: string;
-  quantidadeFornecida: number; 
+  quantidadeFornecida: number;
   sobrasEstimadas: number;
-  biomassaCalculada: number; 
+  biomassaCalculada: number;
   taxaAlimentarAplicada: number;
   tipoRacao?: string;
   frequenciaAlimentacao?: number;
@@ -85,18 +91,15 @@ export type AlimentacaoRegistro = {
   observacoes?: string;
 };
 
-// TIPO BIOMETRIA ATUALIZADO COM NOVOS CAMPOS
 export type BiometriaRegistro = {
-  id: string; 
-  data: string; 
-  loteId: string; 
+  id: string;
+  data: string;
+  loteId: string;
   loteNome: string;
-  pesoMedioCalculado: number; 
+  pesoMedioCalculado: number;
   biomassaTotalEstimada: number;
-  mortalidadeRegistrada: number; 
+  mortalidadeRegistrada: number;
   observacoes?: string;
-  
-  // NOVOS CAMPOS BIOMÉTRICOS
   comprimentoMedio?: number;
   taxaCrescimentoDiario?: number;
   conversaoAlimentar?: number;
@@ -105,14 +108,10 @@ export type BiometriaRegistro = {
   quantidadePeixesInicial?: number;
   quantidadePeixesAtual?: number;
   racaoConsumida?: number;
-  
-  // CAMPOS ADICIONAIS PARA CÁLCULOS
   ganhoPesoDiario?: number;
   fatorCondicao?: number;
   biomassaPorMetroCubico?: number;
   diasCultivo?: number;
-  
-  // PARÂMETROS DE QUALIDADE DE ÁGUA (opcionais)
   temperaturaAgua?: number;
   phAgua?: number;
   oxigenioDissolvido?: number;
@@ -120,7 +119,6 @@ export type BiometriaRegistro = {
   nitrito?: number;
 };
 
-// TIPO PARA REGISTROS DE QUALIDADE DE ÁGUA
 export type QualidadeAguaRegistro = {
   id: string;
   data: string;
@@ -140,6 +138,17 @@ export type QualidadeAguaRegistro = {
   observacoes?: string;
 };
 
+export type CarrinhoItem = {
+  id: string;
+  loteId: string;
+  loteNome: string;
+  produtoNome: string;
+  quantidadeKg: number;
+  precoUnitarioKg: number;
+  tamanho?: 'pequeno' | 'médio' | 'grande' | string;
+  observacoes?: string;
+};
+
 export type Pedido = {
   id: string;
   cliente: string;
@@ -151,8 +160,6 @@ export type Pedido = {
   timestamp: number;
   createdAt?: string;
   updatedAt?: string;
-  
-  // CAMPOS EXPANDIDOS PARA PEDIDOS
   telefoneCliente?: string;
   emailCliente?: string;
   enderecoEntrega?: string;
@@ -162,9 +169,9 @@ export type Pedido = {
   prioridade?: 'baixa' | 'media' | 'alta';
   formaPagamento?: 'dinheiro' | 'cartao' | 'transferencia' | 'pix';
   statusPagamento?: 'pendente' | 'pago' | 'parcial';
+  itensCarrinho?: CarrinhoItem[];
 };
 
-// NOVO TIPO PARA RELATÓRIOS E ANÁLISES
 export type Relatorio = {
   id: string;
   tipo: 'producao' | 'vendas' | 'biometria' | 'alimentacao' | 'qualidade_agua';
@@ -182,7 +189,6 @@ export type Relatorio = {
   createdAt: string;
 };
 
-// NOVO TIPO PARA CLIENTES
 export type Cliente = {
   id: string;
   nome: string;
@@ -197,7 +203,6 @@ export type Cliente = {
   valorTotalComprado: number;
 };
 
-// NOVO TIPO PARA FORNECEDORES
 export type Fornecedor = {
   id: string;
   nome: string;
@@ -211,7 +216,6 @@ export type Fornecedor = {
   dataCadastro: string;
 };
 
-// NOVO TIPO PARA ESTOQUE DE RAÇÃO
 export type EstoqueRacao = {
   id: string;
   tipoRacao: string;
@@ -228,7 +232,6 @@ export type EstoqueRacao = {
   observacoes?: string;
 };
 
-// NOVO TIPO PARA MANUTENÇÕES
 export type Manutencao = {
   id: string;
   tipo: 'preventiva' | 'corretiva' | 'preditiva';
@@ -244,39 +247,40 @@ export type Manutencao = {
   createdAt: string;
 };
 
-// --- TIPOS DE NAVEGAÇÃO ---
+// =====================================================================
+// TIPOS DE NAVEGAÇÃO
+// =====================================================================
+
 export type RootStackParamList = {
-  Home: undefined; 
-  Login: undefined; 
-  Register: undefined; 
+  Home: undefined;
+  Login: undefined;
+  Register: undefined;
   Dashboard: undefined;
-  Perfil: { userId?: string }; 
-  Tanques: undefined; 
-  Lotes: undefined; 
+  Perfil: { userId?: string } | undefined;
+  Tanques: undefined;
+  Lotes: undefined;
   Peixes: undefined;
-  Alimentacao: undefined; 
-  Biometria: undefined; 
+  Alimentacao: undefined;
+  Biometria: undefined;
   Relatorios: undefined;
   ListaUsuarios: undefined;
   Pedidos: undefined;
-  // NOVAS TELAS (se necessário futuramente)
-  // QualidadeAgua: undefined;
-  // Clientes: undefined;
-  // Fornecedores: undefined;
-  // Estoque: undefined;
-  // Manutencao: undefined;
+  Carrinho: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-// --- COMPONENTES DE NAVEGAÇÃO ---
+// =====================================================================
+// STACKS
+// =====================================================================
+
 function AuthStack() {
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
+    <Stack.Navigator
+      screenOptions={{
         headerShown: false,
         gestureEnabled: true,
-        cardStyle: { backgroundColor: '#fff' }
+        cardStyle: { backgroundColor: '#fff' },
       }}
     >
       <Stack.Screen name="Home" component={HomeScreen} />
@@ -288,12 +292,12 @@ function AuthStack() {
 
 function AppStack() {
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
+    <Stack.Navigator
+      screenOptions={{
         headerShown: false,
         gestureEnabled: true,
         cardStyle: { backgroundColor: '#f8fafc' },
-        animation: 'slide_from_right'
+        animation: 'slide_from_right',
       }}
     >
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
@@ -306,26 +310,39 @@ function AppStack() {
       <Stack.Screen name="Relatorios" component={PlaceholderScreen} />
       <Stack.Screen name="ListaUsuarios" component={ListaUsuarios} />
       <Stack.Screen name="Pedidos" component={PedidosScreen} />
+      <Stack.Screen name="Carrinho" component={CarrinhoScreen} />
     </Stack.Navigator>
   );
 }
+
+// =====================================================================
+// ROOT STACK (decide entre Auth ou App pela autenticação)
+// =====================================================================
 
 export default function RootStack() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, currentUser => {
       setUser(currentUser);
       if (loading) setLoading(false);
     });
+
     return unsubscribe;
   }, [loading]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-        <ActivityIndicator size="large" color="#0EA5E9" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#f8fafc',
+        }}
+      >
+        <ActivityIndicator size="large" />
       </View>
     );
   }
