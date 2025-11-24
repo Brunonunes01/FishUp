@@ -16,21 +16,16 @@ import { RootStackParamList } from "../../app/(tabs)";
 
 const { width, height } = Dimensions.get("window");
 
-// Define a interface de Props para o componente de função
 type NavigationProps = StackNavigationProp<RootStackParamList, "Home">;
 interface Props {
   navigation: NavigationProps;
 }
 
-// O componente agora é uma função, exportado como HomeScreen
 export default function HomeScreen({ navigation }: Props) {
-  
-  // Animações agora usam useRef
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
-  // Lógica de animação usando useEffect (Substitui o componentDidMount)
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { 
@@ -53,7 +48,6 @@ export default function HomeScreen({ navigation }: Props) {
     ]).start();
   }, [fadeAnim, slideAnim, scaleAnim]);
 
-  // A lógica de renderização é o retorno da função
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -63,11 +57,9 @@ export default function HomeScreen({ navigation }: Props) {
         resizeMode="cover"
         blurRadius={2}
       >
-        {/* Gradiente overlay */}
         <View style={styles.gradientOverlay} />
         <View style={styles.gradientTop} />
         
-        {/* Elementos flutuantes decorativos */}
         <View style={styles.floatingCircle1} />
         <View style={styles.floatingCircle2} />
         
@@ -87,10 +79,8 @@ export default function HomeScreen({ navigation }: Props) {
               }
             ]}
           >
-            {/* Card principal compacto */}
             <View style={styles.card}>
               
-              {/* Logo otimizado */}
               <View style={styles.logoContainer}>
                 <View style={styles.logoGlow} />
                 <Image 
@@ -100,12 +90,10 @@ export default function HomeScreen({ navigation }: Props) {
                 />
               </View>
 
-              {/* Badge "Novo" */}
               <View style={styles.newBadge}>
                 <Text style={styles.newBadgeText}>NOVO</Text>
               </View>
 
-              {/* Título compacto */}
               <Text style={styles.welcomeText}>Bem-vindo ao</Text>
               <Text style={styles.title}>
                 <Text style={styles.brand}>Fish</Text>
@@ -118,13 +106,11 @@ export default function HomeScreen({ navigation }: Props) {
                 <View style={styles.dividerDot} />
               </View>
 
-              {/* Descrição condensada */}
               <Text style={styles.subtitle}>Gestão Inteligente de Piscicultura</Text>
               <Text style={styles.description}>
                 Controle completo da sua produção aquícola com tecnologia de ponta.
               </Text>
 
-              {/* Features em grid compacto 2x2 */}
               <View style={styles.features}>
                 <View style={styles.featureRow}>
                   <View style={styles.featureCard}>
@@ -163,7 +149,6 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
               </View>
 
-              {/* Botão CTA */}
               <Pressable
                 android_ripple={{ color: "rgba(255,255,255,0.3)" }}
                 style={({ pressed }) => [
@@ -181,28 +166,25 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
               </Pressable>
 
-              {/* Info footer do card */}
               <View style={styles.infoRow}>
                 <Text style={styles.infoText}>✓ Gratuito</Text>
                 <View style={styles.infoDivider} />
                 <Text style={styles.infoText}>✓ Sem cartão</Text>
               </View>
-            </View> {/* Fim do View styles.card */}
+            </View>
 
-            {/* Footer externo */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 🌊 Tecnologia de ponta para aquicultura sustentável
               </Text>
             </View>
-          </Animated.View> {/* Fim do Animated.View styles.container */}
-        </ScrollView> {/* Fim do ScrollView */}
-      </ImageBackground> {/* Fim do ImageBackground */}
+          </Animated.View>
+        </ScrollView>
+      </ImageBackground>
     </>
   );
 }
 
-// Os estilos permanecem exatamente os mesmos
 const styles = StyleSheet.create({
   backgroundImage: {
     flex: 1,

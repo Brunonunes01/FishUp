@@ -92,7 +92,7 @@ export default function LoginScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ImageBackground 
-        source={require('../../../assets/images/logo.jpg')}
+        source={require('../../../assets/images/novo_logo.png')}
         style={styles.backgroundImage}
         resizeMode="cover"
         blurRadius={3}
@@ -124,7 +124,7 @@ export default function LoginScreen() {
                 
                 <View style={styles.logoContainer}>
                   <Image 
-                    source={require('../../../assets/images/logo.jpg')}
+                    source={require('../../../assets/images/novo_logo.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
                   />

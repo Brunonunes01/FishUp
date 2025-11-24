@@ -146,9 +146,9 @@ export type CarrinhoItem = {
   loteId: string;
   loteNome: string;
   produtoNome: string;
-  quantidadeKg: number;
-  precoUnitarioKg: number;
-  tamanho?: 'pequeno' | 'médio' | 'grande' | string;
+  quantidade: number;      // Mudou de quantidadeKg para quantidade (genérico)
+  precoUnitario: number;   // Mudou de precoUnitarioKg para precoUnitario
+  unidade: 'kg' | 'milheiro' | 'unidade'; // NOVO CAMPO
   observacoes?: string;
 };
 
