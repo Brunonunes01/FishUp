@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { onValue, ref, remove, update } from "firebase/database"; // Adicionado update e remove
+import { onValue, ref, remove, update } from "firebase/database";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,6 +11,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share, // <--- IMPORTADO AQUI
   StatusBar,
   StyleSheet,
   Text,
@@ -69,6 +70,47 @@ export default function PedidosScreen() {
     setIsModalVisible(true);
   };
 
+  // --- NOVA FUNÇÃO: COMPARTILHAR COMPROVANTE ---
+  const handleShareReceipt = async () => {
+    if (!selectedOrder) return;
+
+    // Formata a data/hora
+    const dataPedido = new Date(selectedOrder.timestamp).toLocaleDateString('pt-BR');
+    const horaPedido = new Date(selectedOrder.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+
+    // Monta o texto formatado (Markdown simples para WhatsApp)
+    const receiptMessage = `
+🐟 *COMPROVANTE DE PEDIDO - FishUp* 🐟
+--------------------------------
+📦 *Pedido:* #${selectedOrder.id.slice(-6).toUpperCase()}
+📅 *Data:* ${dataPedido} às ${horaPedido}
+--------------------------------
+
+👤 *CLIENTE*
+Nome: *${selectedOrder.cliente}*
+Tel: ${selectedOrder.telefoneCliente || 'Não informado'}
+Entrega: ${selectedOrder.dataEntrega}
+
+🛒 *ITENS*
+${selectedOrder.produto}
+
+💰 *TOTAL: R$ ${selectedOrder.valor.toFixed(2)}*
+Status: ${selectedOrder.status.toUpperCase()}
+
+--------------------------------
+Obrigado pela preferência! 🌊
+    `;
+
+    try {
+        await Share.share({
+            message: receiptMessage,
+            title: 'Comprovante FishUp' // Título para alguns Androids
+        });
+    } catch (error) {
+        Alert.alert("Erro", "Não foi possível compartilhar.");
+    }
+  };
+
   const handleChangeStatus = async (newStatus: StatusType) => {
     if (!user || !selectedOrder) return;
     setUpdating(true);
@@ -76,7 +118,6 @@ export default function PedidosScreen() {
       await update(ref(database, `users/${user.uid}/orders/${selectedOrder.id}`), {
         status: newStatus
       });
-      // Atualiza o estado local do modal para refletir a mudança instantaneamente
       setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
       Alert.alert("Sucesso", `Status alterado para ${newStatus.toUpperCase()}`);
     } catch (error) {
@@ -151,7 +192,7 @@ export default function PedidosScreen() {
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
             <Ionicons name="cube-outline" size={14} color="#94A3B8" />
-            <Text style={styles.detailText}>{item.quantidade} kg</Text>
+            <Text style={styles.detailText}>{Number(item.quantidade).toFixed(2)}</Text>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="wallet-outline" size={14} color="#94A3B8" />
@@ -280,6 +321,14 @@ export default function PedidosScreen() {
                   <Text style={styles.modalLabel}>Produtos</Text>
                   <Text style={styles.modalValue}>{selectedOrder.produto}</Text>
                 </View>
+
+                {/* --- BOTÃO DE COMPARTILHAR (NOVO) --- */}
+                <Pressable style={styles.shareButton} onPress={handleShareReceipt}>
+                    <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+                    <Text style={styles.shareButtonText}>Compartilhar Comprovante</Text>
+                </Pressable>
+
+                <View style={styles.dividerLarge} />
 
                 {/* Seção de Alterar Status */}
                 <Text style={styles.sectionTitle}>Alterar Status</Text>
@@ -507,7 +556,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: '80%',
+    height: '85%', // Aumentado um pouco para caber o botão de share
   },
   modalHeader: {
     flexDirection: 'row',
@@ -567,11 +616,35 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   
+  // Botão Share
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#25D366', // Cor WhatsApp
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  dividerLarge: {
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 20,
+    borderRadius: 3,
+  },
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#0F172A',
-    marginTop: 10,
+    marginTop: 0,
     marginBottom: 12,
   },
   statusGrid: {
@@ -589,7 +662,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     gap: 8,
-    overflow: 'hidden', // Para o background absoluto não vazar
+    overflow: 'hidden',
   },
   statusButtonActive: {
     borderWidth: 0,
@@ -610,7 +683,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     borderRadius: 12,
     gap: 8,
-    marginTop: 10,
+    marginBottom: 40, // Espaço extra no final
   },
   deleteButtonText: {
     color: '#EF4444',

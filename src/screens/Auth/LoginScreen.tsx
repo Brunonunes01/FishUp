@@ -18,7 +18,7 @@ import {
   View,
 } from "react-native";
 import { RootStackParamList } from "../../../app/(tabs)/index";
-import { AuthButton, InputField, SwitchAuthLink } from "../../components/common/AuthUI"; // <-- IMPORTAÇÃO DOS NOVOS COMPONENTES
+import { AuthButton, InputField, SwitchAuthLink } from "../../components/common/AuthUI";
 import { auth } from "../../services/connectionFirebase";
 
 type NavigationProps = StackNavigationProp<RootStackParamList, "Login">;
@@ -29,10 +29,7 @@ export default function LoginScreen() {
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({
-    email: false,
-    senha: false
-  });
+  const [errors, setErrors] = useState({ email: false, senha: false });
 
   // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,23 +38,9 @@ export default function LoginScreen() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 7, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -66,7 +49,6 @@ export default function LoginScreen() {
       email: !email.trim(),
       senha: !senha.trim()
     };
-    
     setErrors(newErrors);
     return !newErrors.email && !newErrors.senha;
   };
@@ -76,11 +58,9 @@ export default function LoginScreen() {
       Alert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
     }
-    
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, senha);
-      // A navegação agora é tratada pelo listener em index.tsx
     } catch (error: any) {
       Alert.alert("Erro de Login", "Verifique seu e-mail e senha.");
     } finally {
@@ -91,8 +71,10 @@ export default function LoginScreen() {
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      {/* BACKGROUND DA TELA (Usa a imagem de fundo original para preencher a tela toda) */}
       <ImageBackground 
-        source={require('../../../assets/images/novo_logo.png')}
+        source={require('../../../assets/images/logo.jpg')} 
         style={styles.backgroundImage}
         resizeMode="cover"
         blurRadius={3}
@@ -113,15 +95,13 @@ export default function LoginScreen() {
                 styles.cardWrapper,
                 {
                   opacity: fadeAnim,
-                  transform: [
-                    { translateY: slideAnim },
-                    { scale: scaleAnim }
-                  ],
+                  transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
                 }
               ]}
             >
               <View style={styles.card}>
                 
+                {/* ÁREA DO LOGO - AQUI ESTÁ A CORREÇÃO */}
                 <View style={styles.logoContainer}>
                   <Image 
                     source={require('../../../assets/images/novo_logo.png')}
@@ -138,7 +118,6 @@ export default function LoginScreen() {
                 </View>
 
                 <View style={styles.form}>
-                  
                   <InputField
                     label="E-mail *"
                     icon="mail-outline"
@@ -177,7 +156,7 @@ export default function LoginScreen() {
                     onPress={handleLogin}
                     loading={loading}
                     icon="arrow-forward-outline"
-                    gradientColors={['#0EA5E9', '#0284C7']} // <-- CORRIGIDO
+                    gradientColors={['#0EA5E9', '#0284C7']}
                   />
 
                   <SwitchAuthLink
@@ -233,14 +212,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 20,
   },
+  
+  // --- AJUSTE DO LOGO AQUI ---
   logoContainer: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20, 
+    marginTop: 10,
+    height: 140, // Define uma altura fixa para o container não crescer demais
+    justifyContent: 'center',
+    overflow: 'visible', // Deixa o logo "vazar" um pouco se precisar
   },
   logoImage: {
-    width: 90,
-    height: 90,
+    width: 140, 
+    height: 140,
+    // TRUQUE: O 'scale' aumenta o zoom na imagem ignorando as bordas transparentes
+    transform: [{ scale: 2.5 }], 
   },
+  // ---------------------------
+
   header: {
     alignItems: "center",
     marginBottom: 28,
@@ -285,4 +274,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

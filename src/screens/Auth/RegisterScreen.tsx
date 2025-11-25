@@ -19,7 +19,7 @@ import {
   View,
 } from "react-native";
 import { RootStackParamList } from "../../../app/(tabs)/index";
-import { AuthButton, InputField, SwitchAuthLink } from "../../components/common/AuthUI"; // <-- IMPORTAÇÃO DOS NOVOS COMPONENTES
+import { AuthButton, InputField, SwitchAuthLink } from "../../components/common/AuthUI";
 import { auth, database } from "../../services/connectionFirebase";
 
 type NavigationProps = StackNavigationProp<RootStackParamList, "Register">;
@@ -43,6 +43,7 @@ export default function RegisterScreen() {
   // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -53,6 +54,12 @@ export default function RegisterScreen() {
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
         tension: 50,
         friction: 7,
         useNativeDriver: true,
@@ -107,6 +114,7 @@ export default function RegisterScreen() {
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      {/* MANTÉM O BACKGROUND ORIGINAL PARA PREENCHER A TELA */}
       <ImageBackground 
         source={require('../../../assets/images/logo.jpg')}
         style={styles.backgroundImage}
@@ -129,15 +137,19 @@ export default function RegisterScreen() {
                 styles.cardWrapper,
                 {
                   opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
+                  transform: [
+                    { translateY: slideAnim },
+                    { scale: scaleAnim }
+                  ],
                 }
               ]}
             >
               <View style={styles.card}>
                 
+                {/* LOGO NOVO GRANDE (ZOOM) */}
                 <View style={styles.logoContainer}>
                   <Image 
-                    source={require('../../../assets/images/logo.jpg')}
+                    source={require('../../../assets/images/novo_logo.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
                   />
@@ -286,14 +298,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 20,
   },
+  
+  // --- LOGO ATUALIZADO IGUAL AO LOGIN ---
   logoContainer: {
     alignItems: "center",
     marginBottom: 20,
+    marginTop: 10,
+    height: 140, // Altura fixa para o container
+    justifyContent: 'center',
+    overflow: 'visible',
   },
   logoImage: {
-    width: 75,
-    height: 75,
+    width: 140,
+    height: 140,
+    transform: [{ scale: 2.5 }], // ZOOM PARA CORTAR BORDAS TRANSPARENTES
   },
+  // ---------------------------------------
+
   header: {
     alignItems: "center",
     marginBottom: 24,
@@ -344,4 +365,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-
