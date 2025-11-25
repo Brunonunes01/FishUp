@@ -2,11 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { onValue, push, ref, remove, set, update } from "firebase/database";
 import React, { memo, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   FlatList,
-  ImageBackground,
   KeyboardAvoidingView,
   ListRenderItem,
   Modal,
@@ -22,7 +21,6 @@ import {
 import { Peixe } from "../../app/(tabs)";
 import { auth, database } from "../services/connectionFirebase";
 
-const { width } = Dimensions.get('window');
 const ADMIN_PASSWORD = 'admin123';
 
 type FormState = {
@@ -39,7 +37,7 @@ type PeixeFormProps = {
   onFormChange: (field: keyof FormState, value: string) => void;
 };
 
-// COMPONENTE DO FORMULÁRIO
+// COMPONENTE DO FORMULÁRIO (DARK MODE)
 const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
   return (
     <View style={styles.formContainer}>
@@ -50,9 +48,9 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
           <TextInput 
             style={styles.input} 
             placeholder="Ex: Tilápia" 
+            placeholderTextColor="#64748B"
             value={formState.nomePopular} 
             onChangeText={v => onFormChange('nomePopular', v)}
-            placeholderTextColor="#94A3B8"
           />
         </View>
       </View>
@@ -64,9 +62,9 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
           <TextInput 
             style={styles.input} 
             placeholder="Ex: Oreochromis niloticus" 
+            placeholderTextColor="#64748B"
             value={formState.nomeCientifico} 
             onChangeText={v => onFormChange('nomeCientifico', v)}
-            placeholderTextColor="#94A3B8"
           />
         </View>
       </View>
@@ -78,9 +76,9 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
           <TextInput 
             style={styles.input} 
             placeholder="Ex: Cichlidae" 
+            placeholderTextColor="#64748B"
             value={formState.familia} 
             onChangeText={v => onFormChange('familia', v)}
-            placeholderTextColor="#94A3B8"
           />
         </View>
       </View>
@@ -89,13 +87,13 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
         <View style={[styles.inputWrapper, { flex: 1 }]}>
           <Text style={styles.inputLabel}>Temperatura</Text>
           <View style={styles.inputWithIcon}>
-            <Ionicons name="thermometer" size={20} color="#0EA5E9" style={styles.inputIcon} />
+            <Ionicons name="thermometer" size={20} color="#F59E0B" style={styles.inputIcon} />
             <TextInput 
               style={styles.input} 
               placeholder="24-28°C" 
+              placeholderTextColor="#64748B"
               value={formState.temperaturaIdeal} 
               onChangeText={v => onFormChange('temperaturaIdeal', v)}
-              placeholderTextColor="#94A3B8"
             />
           </View>
         </View>
@@ -107,9 +105,9 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
             <TextInput 
               style={styles.input} 
               placeholder="6.5-7.5" 
+              placeholderTextColor="#64748B"
               value={formState.phIdeal} 
               onChangeText={v => onFormChange('phIdeal', v)}
-              placeholderTextColor="#94A3B8"
             />
           </View>
         </View>
@@ -118,13 +116,13 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
       <View style={styles.inputWrapper}>
         <Text style={styles.inputLabel}>Observações</Text>
         <View style={styles.inputWithIcon}>
-          <Ionicons name="document-text" size={20} color="#0EA5E9" style={styles.inputIcon} />
+          <Ionicons name="document-text" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput 
             style={[styles.input, styles.textArea]} 
-            placeholder="Informações adicionais sobre a espécie..." 
+            placeholder="Informações adicionais..." 
+            placeholderTextColor="#64748B"
             value={formState.observacoes} 
             onChangeText={v => onFormChange('observacoes', v)}
-            placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -138,7 +136,9 @@ const PeixeForm = memo(({ formState, onFormChange }: PeixeFormProps) => {
 // TELA PRINCIPAL
 export default function PeixesScreen() {
   const [peixes, setPeixes] = useState<Peixe[]>([]);
+  const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
+  
   const [fadeAnim] = useState(new Animated.Value(0));
 
   const [isAddOrEditModalVisible, setIsAddOrEditModalVisible] = useState(false);
@@ -152,10 +152,12 @@ export default function PeixesScreen() {
 
   useEffect(() => {
     if (!user) return;
+    setLoading(true);
     const peixesRef = ref(database, `users/${user.uid}/peixes`);
     const unsubscribe = onValue(peixesRef, (snapshot) => {
       const data = snapshot.val();
       setPeixes(data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : []);
+      setLoading(false);
       
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -232,7 +234,7 @@ export default function PeixesScreen() {
     }
   };
 
-  const PeixeCard = ({ item }: { item: Peixe }) => (
+  const PeixeCard = memo(({ item }: { item: Peixe }) => (
     <View style={styles.peixeCard}>
       <View style={styles.cardHeader}>
         <View style={styles.cardIcon}>
@@ -249,71 +251,59 @@ export default function PeixesScreen() {
       <View style={styles.cardDivider} />
       
       <View style={styles.cardDetails}>
-        {item.familia ? (
-          <View style={styles.detailRow}>
-            <Ionicons name="leaf-outline" size={16} color="#64748B" />
-            <Text style={styles.detailLabel}>Família:</Text>
-            <Text style={styles.detailValue}>{item.familia}</Text>
+        <View style={styles.detailRow}>
+          <View style={styles.detailItem}>
+            <Ionicons name="thermometer-outline" size={16} color="#F59E0B" />
+            <Text style={styles.detailText}>{item.temperaturaIdeal || 'N/A'}</Text>
           </View>
-        ) : null}
-        
-        <View style={styles.detailRow}>
-          <Ionicons name="thermometer-outline" size={16} color="#64748B" />
-          <Text style={styles.detailLabel}>Temperatura:</Text>
-          <Text style={styles.detailValue}>{item.temperaturaIdeal}</Text>
-        </View>
-        
-        <View style={styles.detailRow}>
-          <Ionicons name="water-outline" size={16} color="#64748B" />
-          <Text style={styles.detailLabel}>pH:</Text>
-          <Text style={styles.detailValue}>{item.phIdeal}</Text>
+          <View style={styles.detailItem}>
+            <Ionicons name="water-outline" size={16} color="#0EA5E9" />
+            <Text style={styles.detailText}>pH {item.phIdeal || 'N/A'}</Text>
+          </View>
+          {item.familia ? (
+             <View style={styles.detailItem}>
+                <Ionicons name="leaf-outline" size={16} color="#10B981" />
+                <Text style={styles.detailText}>{item.familia}</Text>
+             </View>
+          ) : null}
         </View>
         
         {item.observacoes ? (
           <View style={styles.observacoesContainer}>
-            <Text style={styles.observacoesLabel}>Observações</Text>
-            <Text style={styles.observacoesText}>{item.observacoes}</Text>
+            <Text style={styles.observacoesText} numberOfLines={2}>{item.observacoes}</Text>
           </View>
         ) : null}
       </View>
       
       <View style={styles.cardActions}>
         <Pressable 
-          style={({ pressed }) => [styles.editButton, pressed && styles.pressed]} 
+          style={({ pressed }) => [styles.actionButton, {backgroundColor: '#F59E0B15'}, pressed && styles.pressed]} 
           onPress={() => openEditModal(item)}
         >
-          <Ionicons name="create-outline" size={18} color="#fff" />
-          <Text style={styles.actionButtonText}>Editar</Text>
+          <Ionicons name="create-outline" size={16} color="#F59E0B" />
+          <Text style={[styles.actionButtonText, {color: '#F59E0B'}]}>Editar</Text>
         </Pressable>
         
         <Pressable 
-          style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]} 
+          style={({ pressed }) => [styles.actionButton, {backgroundColor: '#EF444415'}, pressed && styles.pressed]} 
           onPress={() => openDeleteModal(item)}
         >
-          <Ionicons name="trash-outline" size={18} color="#fff" />
-          <Text style={styles.actionButtonText}>Excluir</Text>
+          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          <Text style={[styles.actionButtonText, {color: '#EF4444'}]}>Excluir</Text>
         </Pressable>
       </View>
     </View>
-  );
+  ));
 
   const renderItem: ListRenderItem<Peixe> = ({ item }) => <PeixeCard item={item} />;
 
   return (
-    <ImageBackground 
-      source={require('../../assets/images/logo.jpg')}
-      style={styles.background}
-      blurRadius={5}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <View style={styles.overlay} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       
-      <Animated.ScrollView 
-        style={[styles.container, { opacity: fadeAnim }]}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.header}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <View>
           <Text style={styles.title}>Espécies</Text>
           <Text style={styles.subtitle}>
             {peixes.length} {peixes.length === 1 ? 'espécie cadastrada' : 'espécies cadastradas'}
@@ -324,30 +314,35 @@ export default function PeixesScreen() {
           style={({ pressed }) => [styles.addButton, pressed && styles.pressed]} 
           onPress={openAddModal}
         >
-          <Ionicons name="add-circle-outline" size={24} color="#fff" />
-          <Text style={styles.addButtonText}>Nova Espécie</Text>
+          <Ionicons name="add" size={24} color="#fff" />
         </Pressable>
+      </View>
 
-        {peixes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <Ionicons name="fish-outline" size={64} color="rgba(255,255,255,0.3)" />
-            </View>
-            <Text style={styles.emptyTitle}>Nenhuma espécie cadastrada</Text>
-            <Text style={styles.emptyText}>
-              Adicione espécies de peixes para gerenciar melhor sua produção
-            </Text>
-          </View>
-        ) : (
+      {/* LISTA */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+           <ActivityIndicator size="large" color="#0EA5E9" />
+        </View>
+      ) : (
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <FlatList 
             data={peixes} 
             renderItem={renderItem} 
             keyExtractor={item => item.id}
-            scrollEnabled={false}
             contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="fish-outline" size={64} color="#334155" />
+                <Text style={styles.emptyTitle}>Nenhuma espécie</Text>
+                <Text style={styles.emptyText}>
+                  Adicione espécies para gerenciar sua produção
+                </Text>
+              </View>
+            }
           />
-        )}
-      </Animated.ScrollView>
+        </Animated.View>
+      )}
 
       {/* MODAL ADICIONAR/EDITAR */}
       <Modal 
@@ -355,46 +350,33 @@ export default function PeixesScreen() {
         onRequestClose={() => setIsAddOrEditModalVisible(false)} 
         animationType="slide"
       >
-        <View style={styles.modalBackground}>
-          <StatusBar barStyle="dark-content" />
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {currentPeixe ? 'Editar Espécie' : 'Nova Espécie'}
+            </Text>
+            <Pressable onPress={() => setIsAddOrEditModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </Pressable>
+          </View>
+
           <KeyboardAvoidingView 
-            behavior={Platform.OS === "ios" ? "padding" : "height"} 
+            behavior={Platform.OS === "ios" ? "padding" : undefined} 
             style={{ flex: 1 }}
           >
-            <ScrollView 
-              style={styles.modalContainer}
-              contentContainerStyle={styles.modalScrollContent}
-            >
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>
-                    {currentPeixe ? 'Editar Espécie' : 'Nova Espécie'}
-                  </Text>
-                  <Text style={styles.modalSubtitle}>
-                    {currentPeixe ? 'Atualize as informações' : 'Preencha os dados da espécie'}
-                  </Text>
-                </View>
-                <Pressable 
-                  style={styles.closeButton} 
-                  onPress={() => setIsAddOrEditModalVisible(false)}
-                >
-                  <Ionicons name="close" size={24} color="#64748B" />
-                </Pressable>
-              </View>
-
-              <View style={styles.modalCard}>
-                <PeixeForm formState={formState} onFormChange={handleFormChange} />
-                
-                <View style={styles.modalButtons}>
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+               <PeixeForm formState={formState} onFormChange={handleFormChange} />
+               
+               <View style={styles.modalButtons}>
                   <Pressable 
-                    style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]} 
+                    style={styles.cancelButton} 
                     onPress={() => setIsAddOrEditModalVisible(false)}
                   >
                     <Text style={styles.cancelButtonText}>Cancelar</Text>
                   </Pressable>
                   
                   <Pressable 
-                    style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]} 
+                    style={styles.saveButton} 
                     onPress={handleAddOrUpdatePeixe}
                   >
                     <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
@@ -402,8 +384,7 @@ export default function PeixesScreen() {
                       {currentPeixe ? 'Atualizar' : 'Salvar'}
                     </Text>
                   </Pressable>
-                </View>
-              </View>
+               </View>
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
@@ -416,110 +397,81 @@ export default function PeixesScreen() {
         transparent={true}
         animationType="fade"
       >
-        <View style={styles.deleteModalContainer}>
-          <View style={styles.deleteModalContent}>
-            <View style={styles.deleteModalIcon}>
-              <Ionicons name="warning-outline" size={56} color="#EF4444" />
+        <View style={styles.overlay}>
+          <View style={styles.deleteCard}>
+            <View style={styles.deleteIcon}>
+              <Ionicons name="warning" size={40} color="#EF4444" />
             </View>
             
-            <Text style={styles.deleteModalTitle}>Confirmar Exclusão</Text>
+            <Text style={styles.deleteTitle}>Excluir Espécie</Text>
             
-            <Text style={styles.deleteModalText}>
-              Deseja excluir <Text style={styles.deleteModalHighlight}>"{currentPeixe?.nomePopular}"</Text>?
-            </Text>
-            
-            <Text style={styles.deleteModalWarning}>
-              Digite a senha de administrador para confirmar.
+            <Text style={styles.deleteText}>
+              Confirme a senha de administrador para excluir "{currentPeixe?.nomePopular}".
             </Text>
 
             <View style={styles.passwordInputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+              <Ionicons name="lock-closed" size={20} color="#64748B" style={styles.inputIcon} />
               <TextInput 
                 style={styles.passwordInput}
-                placeholder="Senha de administrador"
+                placeholder="Senha"
                 secureTextEntry
                 value={passwordInput}
                 onChangeText={setPasswordInput}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor="#64748B"
               />
             </View>
 
-            <View style={styles.deleteModalButtons}>
-              <Pressable 
-                style={({ pressed }) => [styles.cancelDeleteButton, pressed && styles.pressed]} 
-                onPress={() => {
-                  setIsDeleteModalVisible(false);
-                  setPasswordInput('');
-                }}
-              >
+            <View style={styles.deleteButtons}>
+              <Pressable style={styles.cancelDeleteButton} onPress={() => { setIsDeleteModalVisible(false); setPasswordInput(''); }}>
                 <Text style={styles.cancelDeleteButtonText}>Cancelar</Text>
               </Pressable>
               
-              <Pressable 
-                style={({ pressed }) => [styles.confirmDeleteButton, pressed && styles.pressed]} 
-                onPress={handleDeletePeixe}
-              >
-                <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Pressable style={styles.confirmDeleteButton} onPress={handleDeletePeixe}>
                 <Text style={styles.confirmDeleteButtonText}>Excluir</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1 },
-  overlay: { 
-    ...StyleSheet.absoluteFillObject, 
-    backgroundColor: 'rgba(15, 23, 42, 0.92)' 
-  },
-  container: { flex: 1 },
-  scrollContent: { 
-    paddingBottom: 40 
-  },
+  container: { flex: 1, backgroundColor: '#0F172A' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  
+  // Header
   header: {
     paddingHorizontal: 20,
-    paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 40) + 20,
-    paddingBottom: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontWeight: '500',
-  },
-  addButton: {
+    paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 40) + 10,
+    paddingBottom: 20,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#1E293B',
+  },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+  subtitle: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
+  addButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#0EA5E9',
-    marginHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
   },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-  },
+  
+  // Lista
+  listContainer: { padding: 20 },
   peixeCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#1E293B',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -527,236 +479,90 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#E0F2FE',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  cardTitleContainer: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    fontStyle: 'italic',
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-    marginBottom: 16,
-  },
-  cardDetails: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '600',
-  },
+  cardTitleContainer: { flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  cardSubtitle: { fontSize: 13, color: '#94A3B8', fontStyle: 'italic', marginTop: 2 },
+  cardDivider: { height: 1, backgroundColor: '#334155', marginBottom: 16 },
+  
+  cardDetails: { marginBottom: 16 },
+  detailRow: { flexDirection: 'row', gap: 16, marginBottom: 12 },
+  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailText: { fontSize: 13, color: '#CBD5E1', fontWeight: '600' },
+  
   observacoesContainer: {
-    backgroundColor: '#F1F5F9',
-    padding: 12,
+    backgroundColor: '#0F172A',
+    padding: 10,
     borderRadius: 8,
     borderLeftWidth: 3,
     borderLeftColor: '#0EA5E9',
-    marginTop: 4,
   },
-  observacoesLabel: {
-    fontSize: 12,
-    color: '#475569',
-    fontWeight: '700',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  observacoesText: {
-    fontSize: 14,
-    color: '#64748B',
-    lineHeight: 20,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  editButton: {
+  observacoesText: { fontSize: 12, color: '#94A3B8' },
+
+  cardActions: { flexDirection: 'row', gap: 12 },
+  actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F59E0B',
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
     gap: 6,
   },
-  deleteButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EF4444',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 40,
-  },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  
-  // MODAL STYLES
-  modalBackground: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  modalContainer: {
-    flex: 1,
-  },
-  modalScrollContent: {
-    paddingBottom: 40,
-  },
+  actionButtonText: { fontWeight: '700', fontSize: 14 },
+
+  // Empty State
+  emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 80 },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginTop: 16, marginBottom: 8 },
+  emptyText: { fontSize: 14, color: '#64748B', textAlign: 'center' },
+
+  // Modal Adicionar
+  modalContainer: { flex: 1, backgroundColor: '#0F172A' },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 40) + 20,
-    paddingBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 6,
-  },
-  modalSubtitle: {
-    fontSize: 15,
-    color: '#64748B',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#1E293B',
   },
-  modalCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    padding: 24,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  formContainer: {
-    gap: 20,
-  },
-  inputWrapper: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  conditionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+  modalScrollContent: { padding: 20 },
+  
+  formContainer: { gap: 16 },
+  inputWrapper: { marginBottom: 4 },
+  inputLabel: { color: '#94A3B8', marginBottom: 8, fontSize: 12, fontWeight: '600' },
   inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 16,
+    borderColor: '#334155',
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#0F172A',
-  },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 14,
-    paddingBottom: 14,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
+  inputIcon: { marginLeft: 12 },
+  input: { flex: 1, padding: 14, fontSize: 15, color: '#fff' },
+  textArea: { minHeight: 80, paddingTop: 14 },
+  conditionsRow: { flexDirection: 'row', gap: 12 },
+
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 24 },
   cancelButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#334155',
     paddingVertical: 16,
     borderRadius: 12,
   },
-  cancelButtonText: {
-    color: '#64748B',
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  cancelButtonText: { color: '#fff', fontWeight: '600' },
   saveButton: {
-    flex: 1,
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -765,114 +571,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
-  saveButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  
-  // DELETE MODAL
-  deleteModalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 20,
-  },
-  deleteModalContent: {
-    backgroundColor: 'white',
+  saveButtonText: { color: '#fff', fontWeight: '600' },
+
+  // Modal Delete
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
+  deleteCard: {
+    backgroundColor: '#1E293B',
     borderRadius: 20,
-    padding: 28,
-    width: '100%',
-    maxWidth: 400,
+    padding: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  deleteModalIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FEE2E2',
+  deleteIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  deleteModalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  deleteModalText: {
-    fontSize: 15,
-    color: '#475569',
-    textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 22,
-  },
-  deleteModalHighlight: {
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  deleteModalWarning: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
+  deleteTitle: { fontSize: 20, fontWeight: 'bold', color: '#EF4444', marginBottom: 8 },
+  deleteText: { color: '#CBD5E1', textAlign: 'center', marginBottom: 20 },
+  deleteModalHighlight: { color: '#fff', fontWeight: 'bold' },
+  deleteModalWarning: { color: '#64748B', fontSize: 12, marginBottom: 16 },
   passwordInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    marginBottom: 24,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0F172A',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 16,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#0F172A',
-  },
-  deleteModalButtons: {
-    flexDirection: 'row',
-    gap: 12,
+    borderColor: '#334155',
     width: '100%',
+    marginBottom: 24,
   },
-  cancelDeleteButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  cancelDeleteButtonText: {
-    color: '#64748B',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  confirmDeleteButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EF4444',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  confirmDeleteButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  pressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
-  },
+  passwordInput: { flex: 1, padding: 14, color: '#fff' },
+  deleteButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  cancelDeleteButton: { flex: 1, padding: 14, backgroundColor: '#334155', borderRadius: 12, alignItems: 'center' },
+  cancelDeleteButtonText: { color: '#fff', fontWeight: '600' },
+  confirmDeleteButton: { flex: 1, padding: 14, backgroundColor: '#EF4444', borderRadius: 12, alignItems: 'center' },
+  confirmDeleteButtonText: { color: '#fff', fontWeight: '600' },
+
+  pressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
 });
