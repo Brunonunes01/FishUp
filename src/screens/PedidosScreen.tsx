@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
+import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { onValue, ref, remove, update } from "firebase/database";
@@ -69,12 +70,13 @@ export default function PedidosScreen() {
     setIsModalVisible(true);
   };
 
-  // --- GERAR PDF E COMPARTILHAR (SEM STORAGE) ---
+  // --- GERAR PDF E COMPARTILHAR (BLINDADO) ---
   const handleSharePDF = async () => {
     if (!selectedOrder) return;
     setGeneratingPdf(true);
 
     try {
+      // 1. HTML do Comprovante
       const html = `
         <html>
           <head>
@@ -143,7 +145,7 @@ export default function PedidosScreen() {
               <tbody>
                 ${selectedOrder.itensCarrinho?.map(item => {
                   const isMilheiro = item.unidade === 'milheiro';
-                  const qtdReal = isMilheiro ? item.quantidade : item.quantidade;
+                  const qtdReal = item.quantidade;
                   const precoReal = item.precoUnitario;
                   const subtotal = isMilheiro 
                     ? (item.quantidade / 1000) * item.precoUnitario 
@@ -178,15 +180,44 @@ export default function PedidosScreen() {
         </html>
       `;
 
-      // GERA O ARQUIVO TEMPORÁRIO
+      // 1. GERA O ARQUIVO
       const { uri } = await Print.printToFileAsync({ html });
       
-      // COMPARTILHA DIRETO
-      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      // Define uriFinal inicialmente como o arquivo original gerado
+      let uriFinal = uri;
+      
+      try {
+        // Tenta renomear para ficar bonito
+        const nomeLimpo = selectedOrder.cliente.replace(/[^a-zA-Z0-9]/g, '_');
+        const novoNome = `Comprovante_${nomeLimpo}_${selectedOrder.id.substring(0,4)}.pdf`;
+        
+        // Usamos o cacheDirectory que é mais garantido de funcionar
+        // O cast (as any) evita o erro de tipagem se o TS estiver desatualizado
+        const cacheDir = (FileSystem as any).cacheDirectory;
 
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível gerar o PDF.");
-      console.error(error);
+        if (cacheDir) {
+            const novoCaminho = `${cacheDir}${novoNome}`;
+            await FileSystem.moveAsync({
+                from: uri,
+                to: novoCaminho
+            });
+            uriFinal = novoCaminho; // Se der certo, usa o novo caminho
+        }
+      } catch (renameError) {
+        console.log("Não foi possível renomear o arquivo, usando nome padrão.", renameError);
+        // Se der erro ao renomear, não faz nada e usa o 'uri' original
+      }
+
+      // 2. COMPARTILHA (Seja o renomeado ou o original)
+      await Sharing.shareAsync(uriFinal, { 
+        UTI: '.pdf', 
+        mimeType: 'application/pdf',
+        dialogTitle: `Comprovante - ${selectedOrder.cliente}`
+      });
+
+    } catch (error: any) {
+      Alert.alert("Erro ao gerar PDF", "Verifique as permissões de armazenamento do app.");
+      console.error("Erro PDF:", error);
     } finally {
       setGeneratingPdf(false);
     }
@@ -292,6 +323,7 @@ export default function PedidosScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
+      {/* HEADER FIXO */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View>
           <Text style={styles.title}>Meus Pedidos</Text>
@@ -302,15 +334,26 @@ export default function PedidosScreen() {
         </Pressable>
       </View>
 
+      {/* FILTROS FIXOS */}
       <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContent}
+        >
           {(['todos', 'pendente', 'processando', 'concluido', 'cancelado'] as const).map((status) => (
             <Pressable
               key={status}
-              style={[styles.filterChip, statusFilter === status && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                statusFilter === status && styles.filterChipActive
+              ]}
               onPress={() => setStatusFilter(status)}
             >
-              <Text style={[styles.filterText, statusFilter === status && styles.filterTextActive]}>
+              <Text style={[
+                styles.filterText,
+                statusFilter === status && styles.filterTextActive
+              ]}>
                 {status.charAt(0).toUpperCase() + status.slice(1)}
               </Text>
             </Pressable>
@@ -318,6 +361,7 @@ export default function PedidosScreen() {
         </ScrollView>
       </View>
 
+      {/* LISTA (SCROLL INDEPENDENTE) */}
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#0EA5E9" />
@@ -327,9 +371,12 @@ export default function PedidosScreen() {
           data={filteredOrders}
           keyExtractor={(item) => item.id}
           renderItem={renderOrderItem}
+          style={{ flex: 1 }} // Garante que a lista ocupe o espaço correto
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0EA5E9" />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0EA5E9" />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="clipboard-outline" size={64} color="#334155" />
@@ -339,9 +386,17 @@ export default function PedidosScreen() {
         />
       )}
 
-      <Modal visible={isModalVisible} transparent animationType="slide" onRequestClose={() => setIsModalVisible(false)}>
+      {/* === MODAL DE DETALHES E STATUS === */}
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
+            
+            {/* Header Modal */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Detalhes do Pedido</Text>
               <Pressable onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
@@ -351,6 +406,8 @@ export default function PedidosScreen() {
 
             {selectedOrder && (
               <ScrollView contentContainerStyle={styles.modalBody}>
+                
+                {/* Info Principal */}
                 <View style={styles.modalInfoSection}>
                   <Text style={styles.modalLabel}>Cliente</Text>
                   <Text style={styles.modalValueBig}>{selectedOrder.cliente}</Text>
@@ -375,7 +432,7 @@ export default function PedidosScreen() {
                   <Text style={styles.modalValue}>{selectedOrder.produto}</Text>
                 </View>
 
-                {/* BOTÃO GERAR PDF (SEM STORAGE) */}
+                {/* BOTÃO GERAR PDF */}
                 <Pressable 
                     style={styles.pdfButton} 
                     onPress={handleSharePDF}
@@ -387,90 +444,364 @@ export default function PedidosScreen() {
 
                 <View style={styles.dividerLarge} />
 
+                {/* Seção de Alterar Status */}
                 <Text style={styles.sectionTitle}>Alterar Status</Text>
                 <View style={styles.statusGrid}>
                   {(['pendente', 'processando', 'concluido', 'cancelado'] as StatusType[]).map((status) => (
                     <Pressable
                       key={status}
-                      style={[styles.statusButton, selectedOrder.status === status && styles.statusButtonActive, { borderColor: getStatusColor(status) }]}
+                      style={[
+                        styles.statusButton,
+                        selectedOrder.status === status && styles.statusButtonActive,
+                        { borderColor: getStatusColor(status) }
+                      ]}
                       onPress={() => handleChangeStatus(status)}
                       disabled={updating}
                     >
-                      <Ionicons name={status === 'concluido' ? 'checkmark-circle' : 'ellipse'} size={12} color={selectedOrder.status === status ? '#fff' : getStatusColor(status)} />
-                      <Text style={[styles.statusButtonText, { color: selectedOrder.status === status ? '#fff' : getStatusColor(status) }]}>
+                      <Ionicons 
+                        name={status === 'concluido' ? 'checkmark-circle' : 'ellipse'} 
+                        size={12} 
+                        color={selectedOrder.status === status ? '#fff' : getStatusColor(status)} 
+                      />
+                      <Text style={[
+                        styles.statusButtonText,
+                        { color: selectedOrder.status === status ? '#fff' : getStatusColor(status) }
+                      ]}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
                       </Text>
-                      {selectedOrder.status === status && <View style={[styles.statusBackground, { backgroundColor: getStatusColor(status) }]} />}
+                      {selectedOrder.status === status && (
+                        <View style={[styles.statusBackground, { backgroundColor: getStatusColor(status) }]} />
+                      )}
                     </Pressable>
                   ))}
                 </View>
 
+                {/* Botão Excluir */}
                 <Pressable style={styles.deleteButton} onPress={handleDeleteOrder}>
                   <Ionicons name="trash-outline" size={20} color="#EF4444" />
                   <Text style={styles.deleteButtonText}>Excluir Pedido</Text>
                 </Pressable>
+
               </ScrollView>
             )}
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 20, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155', zIndex: 10 },
-  title: { fontSize: 24, fontWeight: '800', color: '#fff' },
-  subtitle: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
-  refreshButton: { padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 },
-  filterContainer: { backgroundColor: '#1E293B', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#334155', zIndex: 5 },
-  filterContent: { paddingHorizontal: 20, gap: 10 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' },
-  filterChipActive: { backgroundColor: '#0EA5E9', borderColor: '#0EA5E9' },
-  filterText: { color: '#94A3B8', fontWeight: '600', fontSize: 13 },
-  filterTextActive: { color: '#fff' },
-  listContent: { padding: 16, paddingBottom: 100 },
-  card: { backgroundColor: '#1E293B', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#334155' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  clientName: { fontSize: 16, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-  dateText: { fontSize: 12, color: '#94A3B8' },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' },
-  divider: { height: 1, backgroundColor: '#334155', marginVertical: 12 },
-  cardContent: { gap: 8 },
-  productText: { fontSize: 14, color: '#E2E8F0', fontWeight: '500' },
-  detailsRow: { flexDirection: 'row', gap: 16, marginTop: 4 },
-  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailText: { fontSize: 13, color: '#CBD5E1', fontWeight: '600' },
-  footerCard: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(51, 65, 85, 0.5)' },
-  footerText: { fontSize: 12, color: '#64748B' },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#64748B', fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '85%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#0F172A' },
-  closeButton: { padding: 4 },
-  modalBody: { padding: 20 },
-  modalInfoSection: { marginBottom: 20 },
-  modalLabel: { fontSize: 12, color: '#64748B', fontWeight: '600', textTransform: 'uppercase', marginBottom: 4 },
-  modalValueBig: { fontSize: 22, fontWeight: 'bold', color: '#0F172A' },
-  modalSubInfo: { fontSize: 14, color: '#64748B', marginTop: 4 },
-  modalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  modalCol: { flex: 1 },
-  modalValue: { fontSize: 16, color: '#0F172A', fontWeight: '500' },
-  modalValueHighlight: { fontSize: 18, color: '#10B981', fontWeight: 'bold' },
-  pdfButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0EA5E9', paddingVertical: 14, borderRadius: 12, gap: 8, marginTop: 10, marginBottom: 10 },
-  pdfButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  dividerLarge: { height: 6, backgroundColor: '#F1F5F9', marginVertical: 20, borderRadius: 3 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#0F172A', marginTop: 0, marginBottom: 12 },
-  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 30 },
-  statusButton: { width: '48%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderWidth: 1, borderRadius: 12, gap: 8, overflow: 'hidden' },
-  statusButtonActive: { borderWidth: 0 },
-  statusBackground: { ...StyleSheet.absoluteFillObject, zIndex: -1 },
-  statusButtonText: { fontWeight: '600', fontSize: 13 },
-  deleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: '#FEF2F2', borderRadius: 12, gap: 8, marginBottom: 40 },
-  deleteButtonText: { color: '#EF4444', fontWeight: 'bold', fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: '#1E293B',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    zIndex: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  refreshButton: {
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+  },
+
+  // Filter Bar
+  filterContainer: {
+    backgroundColor: '#1E293B',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    zIndex: 5,
+  },
+  filterContent: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  filterChipActive: {
+    backgroundColor: '#0EA5E9',
+    borderColor: '#0EA5E9',
+  },
+  filterText: {
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  filterTextActive: {
+    color: '#fff',
+  },
+
+  // List
+  listContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  
+  // Order Card
+  card: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  clientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#334155',
+    marginVertical: 12,
+  },
+  cardContent: {
+    gap: 8,
+  },
+  productText: {
+    fontSize: 14,
+    color: '#E2E8F0',
+    fontWeight: '500',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  detailText: {
+    fontSize: 13,
+    color: '#CBD5E1',
+    fontWeight: '600',
+  },
+  footerCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(51, 65, 85, 0.5)',
+  },
+  footerText: {
+      fontSize: 12,
+      color: '#64748B',
+  },
+
+  // Empty State
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+
+  // === ESTILOS DO MODAL ===
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '85%', // Aumentado um pouco para caber o botão de share
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalInfoSection: {
+    marginBottom: 20,
+  },
+  modalLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  modalValueBig: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  modalSubInfo: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  modalCol: {
+    flex: 1,
+  },
+  modalValue: {
+    fontSize: 16,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  modalValueHighlight: {
+    fontSize: 18,
+    color: '#10B981',
+    fontWeight: 'bold',
+  },
+  
+  // Botão Share
+  pdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0EA5E9',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  pdfButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  dividerLarge: {
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 20,
+    borderRadius: 3,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginTop: 0,
+    marginBottom: 12,
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 30,
+  },
+  statusButton: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    gap: 8,
+    overflow: 'hidden',
+  },
+  statusButtonActive: {
+    borderWidth: 0,
+  },
+  statusBackground: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+  },
+  statusButtonText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 40, // Espaço extra no final
+  },
+  deleteButtonText: {
+    color: '#EF4444',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

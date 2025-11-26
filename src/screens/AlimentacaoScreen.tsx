@@ -49,6 +49,7 @@ export default function AlimentacaoScreen() {
   const [registros, setRegistros] = useState<AlimentacaoRegistro[]>([]);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [isLoteModalVisible, setIsLoteModalVisible] = useState(false);
+  const [isHelpModalVisible, setIsHelpModalVisible] = useState(false); // NOVO MODAL DE AJUDA
   const [loading, setLoading] = useState(false);
   const user = auth.currentUser;
 
@@ -67,7 +68,6 @@ export default function AlimentacaoScreen() {
     const unsubLotes = onValue(lotesRef, s => {
       const data = s.val();
       const lista = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
-      // Apenas lotes ativos
       setLotes(lista.filter(l => l.status === 'ativo'));
     });
 
@@ -194,10 +194,15 @@ export default function AlimentacaoScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       
-      {/* HEADER */}
+      {/* HEADER COM BOTÃO DE AJUDA */}
       <View style={styles.header}>
-        <Text style={styles.title}>Alimentação</Text>
-        <Text style={styles.subtitle}>Controle diário e cálculos</Text>
+        <View>
+            <Text style={styles.title}>Alimentação</Text>
+            <Text style={styles.subtitle}>Controle diário e cálculos</Text>
+        </View>
+        <Pressable style={styles.helpButton} onPress={() => setIsHelpModalVisible(true)}>
+            <Ionicons name="help-circle-outline" size={28} color="#fff" />
+        </Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -339,7 +344,7 @@ export default function AlimentacaoScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecione o Lote</Text>
               <Pressable onPress={() => setIsLoteModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
+                <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
             <FlatList 
@@ -359,16 +364,84 @@ export default function AlimentacaoScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* === NOVO MODAL DE AJUDA === */}
+      <Modal visible={isHelpModalVisible} transparent animationType="fade" onRequestClose={() => setIsHelpModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: 'auto', maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Como Usar?</Text>
+              <Pressable onPress={() => setIsHelpModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
+            </View>
+            <ScrollView style={{padding: 20}}>
+                
+                <View style={styles.helpStep}>
+                    <View style={styles.helpIconBg}><Text style={styles.helpNumber}>1</Text></View>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.helpTitle}>Selecione o Lote</Text>
+                        <Text style={styles.helpText}>Escolha qual tanque você vai alimentar hoje.</Text>
+                    </View>
+                </View>
+
+                <View style={styles.helpStep}>
+                    <View style={styles.helpIconBg}><Text style={styles.helpNumber}>2</Text></View>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.helpTitle}>Use a Calculadora (Opcional)</Text>
+                        <Text style={styles.helpText}>
+                            Não sabe quanto dar de ração? Preencha o <Text style={{fontWeight:'bold', color:'#fff'}}>Peso Médio</Text> (ex: 150g) e a <Text style={{fontWeight:'bold', color:'#fff'}}>Temperatura</Text> da água. O app calcula a quantidade ideal baseado na biomassa.
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={styles.helpStep}>
+                    <View style={styles.helpIconBg}><Text style={styles.helpNumber}>3</Text></View>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.helpTitle}>Registre o Arraçoamento</Text>
+                        <Text style={styles.helpText}>
+                            No campo <Text style={{fontWeight:'bold', color:'#fff'}}>Qtd. Fornecida</Text>, coloque o que você realmente jogou no tanque.
+                        </Text>
+                    </View>
+                </View>
+                
+                <View style={[styles.helpStep, { borderBottomWidth: 0 }]}>
+                    <View style={styles.helpIconBg}><Text style={styles.helpNumber}>4</Text></View>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.helpTitle}>Sobras</Text>
+                        <Text style={styles.helpText}>
+                            Se sobrou ração na superfície, estime a quantidade e anote. Isso ajuda a ajustar a próxima alimentação.
+                        </Text>
+                    </View>
+                </View>
+
+                <Pressable style={styles.closeHelpButton} onPress={() => setIsHelpModalVisible(false)}>
+                    <Text style={styles.closeHelpButtonText}>Entendi, vamos lá!</Text>
+                </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
-  header: { paddingHorizontal: 20, paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 40) + 10, paddingBottom: 20, backgroundColor: '#1E293B' },
+  header: { paddingHorizontal: 20, paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 40) + 10, paddingBottom: 20, backgroundColor: '#1E293B', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: '#fff' },
   subtitle: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
   
+  helpButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
+
   scrollContent: { padding: 20, paddingBottom: 40 },
 
   // Select Button
@@ -424,10 +497,56 @@ const styles = StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '60%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#0F172A' },
-  loteItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  loteItemTitle: { fontSize: 16, fontWeight: 'bold', color: '#0F172A' },
+  modalContent: { backgroundColor: '#1E293B', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '60%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  loteItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  loteItemTitle: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
   loteItemSubtitle: { color: '#64748B' },
+
+  // Help Modal Specifics
+  helpStep: {
+      flexDirection: 'row',
+      gap: 16,
+      marginBottom: 20,
+      paddingBottom: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: '#334155',
+  },
+  helpIconBg: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: '#0EA5E9',
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
+  helpNumber: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+  },
+  helpTitle: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+      marginBottom: 4,
+  },
+  helpText: {
+      color: '#94A3B8',
+      fontSize: 14,
+      lineHeight: 20,
+  },
+  closeHelpButton: {
+      backgroundColor: '#0EA5E9',
+      padding: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginBottom: 20,
+  },
+  closeHelpButtonText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
+  },
 });

@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { onValue, push, ref, remove, set, update } from "firebase/database";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
+  Animated,
   FlatList,
   KeyboardAvoidingView,
-  ListRenderItem,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -16,17 +16,16 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from "react-native";
-// Importar o tipo Cliente do arquivo de navegação
 import { Cliente } from "../../app/(tabs)";
 import { auth, database } from "../services/connectionFirebase";
 
-const { width } = Dimensions.get('window');
-const ADMIN_PASSWORD = 'admin123'; 
+const ADMIN_PASSWORD = 'admin123';
 
-// --- TYPES ---
+// ==================== TYPES ====================
 type TipoCliente = 'varejo' | 'atacado' | 'distribuidor';
+type FilterType = 'todos' | TipoCliente;
 
 type FormState = {
   nome: string;
@@ -39,115 +38,112 @@ type FormState = {
 
 type ClienteFormProps = {
   formState: FormState;
-  onFormChange: (field: keyof FormState, value: string) => void;
   tipo: TipoCliente;
-  onSelectTipo: (tipo: TipoCliente) => void;
+  onFormChange: (field: keyof FormState, value: string) => void;
+  onSelectTipo: (t: TipoCliente) => void;
 };
 
-// --- COMPONENTE DO FORMULÁRIO ---
-const ClienteForm = memo(({ formState, onFormChange, tipo, onSelectTipo }: ClienteFormProps) => {
-  const inputRefs = useRef<{[key: string]: TextInput | null}>({});
-
-  const tipos: { label: string, value: TipoCliente }[] = [
-    { label: 'Varejo', value: 'varejo' },
-    { label: 'Atacado', value: 'atacado' },
-    { label: 'Distribuidor', value: 'distribuidor' },
+// ==================== FORMULÁRIO (DARK MODE) ====================
+const ClienteForm = memo(({ formState, tipo, onFormChange, onSelectTipo }: ClienteFormProps) => {
+  const tipos: { label: string; value: TipoCliente; color: string }[] = [
+    { label: 'Varejo', value: 'varejo', color: '#0EA5E9' },
+    { label: 'Atacado', value: 'atacado', color: '#10B981' },
+    { label: 'Distribuidor', value: 'distribuidor', color: '#8B5CF6' },
   ];
 
   return (
-    <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+    <View style={styles.formContainer}>
       
-      {/* Informações Básicas */}
-      <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Dados Pessoais/Empresariais</Text>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Nome/Razão Social *</Text>
+      {/* Dados Principais */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Nome / Razão Social *</Text>
+        <View style={styles.inputWithIcon}>
+          <Ionicons name="person" size={20} color="#0EA5E9" style={styles.inputIcon} />
           <TextInput 
-            ref={el => { inputRefs.current['nome'] = el; }}
             style={styles.input} 
-            placeholder="Nome Completo ou Razão Social" 
+            placeholder="Nome do cliente" 
+            placeholderTextColor="#64748B"
             value={formState.nome} 
             onChangeText={v => onFormChange('nome', v)} 
-            returnKeyType="next"
-            onSubmitEditing={() => inputRefs.current['telefone']?.focus()}
-          />
-        </View>
-
-        <View style={styles.inputRow}>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>Telefone *</Text>
-            <TextInput 
-              ref={el => { inputRefs.current['telefone'] = el; }}
-              style={styles.input} 
-              placeholder="(00) 00000-0000" 
-              value={formState.telefone} 
-              onChangeText={v => onFormChange('telefone', v)} 
-              keyboardType="phone-pad"
-              returnKeyType="next"
-              onSubmitEditing={() => inputRefs.current['email']?.focus()}
-            />
-          </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput 
-              ref={el => { inputRefs.current['email'] = el; }}
-              style={styles.input} 
-              placeholder="email@cliente.com" 
-              value={formState.email} 
-              onChangeText={v => onFormChange('email', v)} 
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-              onSubmitEditing={() => inputRefs.current['cpfCnpj']?.focus()}
-            />
-          </View>
-        </View>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>CPF/CNPJ</Text>
-          <TextInput 
-            ref={el => { inputRefs.current['cpfCnpj'] = el; }}
-            style={styles.input} 
-            placeholder="CPF ou CNPJ" 
-            value={formState.cpfCnpj} 
-            onChangeText={v => onFormChange('cpfCnpj', v)} 
-            keyboardType="numeric"
-            returnKeyType="next"
-            onSubmitEditing={() => inputRefs.current['endereco']?.focus()}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Endereço</Text>
-          <TextInput 
-            ref={el => { inputRefs.current['endereco'] = el; }}
-            style={styles.input} 
-            placeholder="Rua, Número, Bairro, Cidade/UF" 
-            value={formState.endereco} 
-            onChangeText={v => onFormChange('endereco', v)} 
-            returnKeyType="next"
-            onSubmitEditing={() => inputRefs.current['observacoes']?.focus()}
           />
         </View>
       </View>
 
-      {/* Tipo de Cliente */}
-      <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Tipo de Cliente</Text>
-        <View style={styles.optionsRow}>
+      <View style={styles.inputRow}>
+        <View style={[styles.inputGroup, { flex: 1.2 }]}>
+          <Text style={styles.inputLabel}>Telefone *</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="call" size={20} color="#10B981" style={styles.inputIcon} />
+            <TextInput 
+              style={styles.input} 
+              placeholder="(00) 00000-0000" 
+              placeholderTextColor="#64748B"
+              value={formState.telefone} 
+              onChangeText={v => onFormChange('telefone', v)} 
+              keyboardType="phone-pad"
+            />
+          </View>
+        </View>
+        <View style={[styles.inputGroup, { flex: 0.8 }]}>
+          <Text style={styles.inputLabel}>CPF/CNPJ</Text>
+          <TextInput 
+            style={styles.inputSimple} 
+            placeholder="Documento" 
+            placeholderTextColor="#64748B"
+            value={formState.cpfCnpj} 
+            onChangeText={v => onFormChange('cpfCnpj', v)} 
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>E-mail</Text>
+        <View style={styles.inputWithIcon}>
+          <Ionicons name="mail" size={20} color="#F59E0B" style={styles.inputIcon} />
+          <TextInput 
+            style={styles.input} 
+            placeholder="email@exemplo.com" 
+            placeholderTextColor="#64748B"
+            value={formState.email} 
+            onChangeText={v => onFormChange('email', v)} 
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Endereço</Text>
+        <View style={styles.inputWithIcon}>
+          <Ionicons name="location" size={20} color="#EF4444" style={styles.inputIcon} />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Endereço completo" 
+            placeholderTextColor="#64748B"
+            value={formState.endereco} 
+            onChangeText={v => onFormChange('endereco', v)} 
+          />
+        </View>
+      </View>
+
+      {/* Seletor de Tipo */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Tipo de Cliente</Text>
+        <View style={styles.typeSelector}>
           {tipos.map((t) => (
-            <Pressable 
-              key={t.value} 
-              style={[styles.option, tipo === t.value && styles.optionActive]} 
+            <Pressable
+              key={t.value}
+              style={[
+                styles.typeOption,
+                tipo === t.value && { backgroundColor: t.color + '20', borderColor: t.color }
+              ]}
               onPress={() => onSelectTipo(t.value)}
             >
-              <Ionicons 
-                name={tipo === t.value ? 'radio-button-on' : 'radio-button-off'} 
-                size={20} 
-                color={tipo === t.value ? '#0EA5E9' : '#64748B'} 
-              />
-              <Text style={[styles.optionText, tipo === t.value && styles.optionTextActive]}>
+              <Text style={[
+                styles.typeText,
+                tipo === t.value && { color: t.color, fontWeight: 'bold' }
+              ]}>
                 {t.label}
               </Text>
             </Pressable>
@@ -155,765 +151,455 @@ const ClienteForm = memo(({ formState, onFormChange, tipo, onSelectTipo }: Clien
         </View>
       </View>
 
-      {/* Observações */}
-      <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Observações</Text>
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Observações</Text>
         <TextInput 
-          ref={el => { inputRefs.current['observacoes'] = el; }}
-          style={[styles.input, styles.textArea]} 
-          placeholder="Notas sobre preferências ou histórico..." 
+          style={[styles.inputSimple, styles.textArea]} 
+          placeholder="Anotações..." 
+          placeholderTextColor="#64748B"
           value={formState.observacoes} 
           onChangeText={v => onFormChange('observacoes', v)} 
           multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-          returnKeyType="done"
         />
-      </View>
-      <View style={styles.spacer} />
-    </ScrollView>
-  );
-});
-
-// --- COMPONENTE CARD DO CLIENTE ---
-const ClienteCard = memo(({ item, onEdit, onDelete }: { item: Cliente, onEdit: (c: Cliente) => void, onDelete: (c: Cliente) => void }) => {
-  const getTipoColor = (tipo: string) => {
-    switch (tipo) {
-      case 'varejo': return '#0EA5E9';
-      case 'atacado': return '#10B981';
-      case 'distribuidor': return '#8B5CF6';
-      default: return '#64748B';
-    }
-  };
-
-  return (
-    <View style={styles.card}>
-      <View style={[styles.cardBorder, { backgroundColor: getTipoColor(item.tipo) }]} />
-      <View style={styles.cardContent}>
-        
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.nome}</Text>
-          <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(item.tipo) + '20' }]}>
-            <Text style={[styles.tipoText, { color: getTipoColor(item.tipo) }]}>
-              {item.tipo}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.cardDetailRow}>
-          <Ionicons name="call-outline" size={14} color="#64748B" />
-          <Text style={styles.cardDetailText}>{item.telefone}</Text>
-        </View>
-        
-        {item.email && (
-          <View style={styles.cardDetailRow}>
-            <Ionicons name="mail-outline" size={14} color="#64748B" />
-            <Text style={styles.cardDetailText}>{item.email}</Text>
-          </View>
-        )}
-        
-        {item.endereco && (
-          <View style={styles.cardDetailRow}>
-            <Ionicons name="location-outline" size={14} color="#64748B" />
-            <Text style={styles.cardDetailText} numberOfLines={1}>{item.endereco}</Text>
-          </View>
-        )}
-
-        <View style={styles.cardActions}>
-          <Pressable style={styles.editButton} onPress={() => onEdit(item)}>
-            <Ionicons name="create-outline" size={18} color="#0EA5E9" />
-            <Text style={styles.editText}>Editar</Text>
-          </Pressable>
-          <Pressable style={styles.deleteButton} onPress={() => onDelete(item)}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-            {/* CORREÇÃO: Usando o novo nome de estilo para o texto do card */}
-            <Text style={styles.deleteCardText}>Excluir</Text> 
-          </Pressable>
-        </View>
-        
       </View>
     </View>
   );
 });
 
-// --- TELA PRINCIPAL ---
+// ==================== CARD DO CLIENTE ====================
+const ClienteCard = memo(({ item, onEdit, onDelete }: { item: Cliente, onEdit: (c: Cliente) => void, onDelete: (c: Cliente) => void }) => {
+  
+  const getTipoStyle = (tipo: string) => {
+    switch (tipo) {
+      case 'varejo': return { color: '#0EA5E9', label: 'Varejo' };
+      case 'atacado': return { color: '#10B981', label: 'Atacado' };
+      case 'distribuidor': return { color: '#8B5CF6', label: 'Distribuidor' };
+      default: return { color: '#64748B', label: 'Padrão' };
+    }
+  };
+
+  const tipoInfo = getTipoStyle(item.tipo);
+
+  const handleCall = () => {
+    Linking.openURL(`tel:${item.telefone}`);
+  };
+
+  const handleEmail = () => {
+    if (item.email) Linking.openURL(`mailto:${item.email}`);
+    else Alert.alert("Aviso", "Este cliente não possui e-mail cadastrado.");
+  };
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardAvatar}>
+          <Text style={styles.avatarText}>{item.nome.charAt(0).toUpperCase()}</Text>
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardName} numberOfLines={1}>{item.nome}</Text>
+          <View style={styles.cardBadges}>
+            <View style={[styles.badge, { backgroundColor: tipoInfo.color + '20' }]}>
+              <Text style={[styles.badgeText, { color: tipoInfo.color }]}>{tipoInfo.label}</Text>
+            </View>
+            {item.pedidosRealizados > 0 && (
+              <View style={styles.statsBadge}>
+                <Ionicons name="cart" size={10} color="#F59E0B" />
+                <Text style={styles.statsText}>{item.pedidosRealizados}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.divider} />
+
+      <View style={styles.contactRow}>
+        <Pressable style={styles.contactItem} onPress={handleCall}>
+          <View style={styles.contactIconBox}>
+            <Ionicons name="call" size={16} color="#10B981" />
+          </View>
+          <Text style={styles.contactText}>{item.telefone}</Text>
+        </Pressable>
+        
+        {item.email && (
+          <Pressable style={styles.contactItem} onPress={handleEmail}>
+            <View style={styles.contactIconBox}>
+              <Ionicons name="mail" size={16} color="#F59E0B" />
+            </View>
+            <Text style={styles.contactText} numberOfLines={1}>{item.email}</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {item.endereco && (
+        <View style={styles.addressRow}>
+          <Ionicons name="location-outline" size={14} color="#64748B" />
+          <Text style={styles.addressText} numberOfLines={1}>{item.endereco}</Text>
+        </View>
+      )}
+
+      <View style={styles.cardActions}>
+        <Pressable style={[styles.actionButton, styles.editButton]} onPress={() => onEdit(item)}>
+          <Ionicons name="create-outline" size={18} color="#0EA5E9" />
+          <Text style={[styles.actionText, { color: '#0EA5E9' }]}>Editar</Text>
+        </Pressable>
+        <Pressable style={[styles.actionButton, styles.deleteButton]} onPress={() => onDelete(item)}>
+          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+          <Text style={[styles.actionText, { color: '#EF4444' }]}>Excluir</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
+// ==================== TELA PRINCIPAL ====================
 export default function ClientesScreen() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<FilterType>('todos');
   const user = auth.currentUser;
-  
-  // Estados de Modais
-  const [isAddOrEditModalVisible, setIsAddOrEditModalVisible] = useState(false);
+
+  // Animações
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Modais
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   
   // Estados de Dados
   const [currentCliente, setCurrentCliente] = useState<Cliente | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [formState, setFormState] = useState<FormState>({
     nome: '', telefone: '', email: '', endereco: '', cpfCnpj: '', observacoes: '',
   });
   const [tipoCliente, setTipoCliente] = useState<TipoCliente>('varejo');
 
-  // --- EFEITOS ---
+  // Carregar Dados
   useEffect(() => {
     if (!user) return;
-    
+    setLoading(true);
     const clientesRef = ref(database, `users/${user.uid}/clientes`);
+    
     const unsubscribe = onValue(clientesRef, (snapshot) => {
       const data = snapshot.val();
-      const clientesArray = data 
-        ? Object.keys(data).map(k => ({ 
-            id: k, 
-            ...data[k], 
-            dataCadastro: data[k].dataCadastro || new Date().toISOString() // Garante data de cadastro
-          }))
-        : [];
-      setClientes(clientesArray.sort((a, b) => new Date(b.dataCadastro).getTime() - new Date(a.dataCadastro).getTime()));
+      const lista = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+      // Ordenar por nome
+      lista.sort((a, b) => a.nome.localeCompare(b.nome));
+      setClientes(lista);
       setLoading(false);
+      
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
     });
-    
     return unsubscribe;
   }, [user]);
 
-  // --- Funções Auxiliares de Limpeza (CORREÇÃO 1: Limpa undefined) ---
-  const cleanupString = (value: string | undefined): string | undefined => {
-      if (!value) return undefined; 
-      const trimmed = value.trim();
-      return trimmed === '' ? undefined : trimmed;
-  };
+  // Filtros
+  useEffect(() => {
+    let result = clientes;
 
-  // Funçao auxiliar para remover undefineds antes de salvar no Firebase (CORREÇÃO 2: Filtra undefineds)
-  const filterUndefined = (obj: any): any => {
-    return Object.fromEntries(
-        Object.entries(obj).filter(([, value]) => value !== undefined)
-    );
-  };
-  
-  // --- Funções de Abertura de Modais ---
-  const openAddModal = useCallback(() => {
+    if (filterType !== 'todos') {
+      result = result.filter(c => c.tipo === filterType);
+    }
+
+    if (searchQuery.trim()) {
+      const lower = searchQuery.toLowerCase();
+      result = result.filter(c => 
+        c.nome.toLowerCase().includes(lower) || 
+        c.email?.toLowerCase().includes(lower)
+      );
+    }
+
+    setFilteredClientes(result);
+  }, [clientes, filterType, searchQuery]);
+
+  // Handlers
+  const openAddModal = () => {
     setCurrentCliente(null);
     setFormState({ nome: '', telefone: '', email: '', endereco: '', cpfCnpj: '', observacoes: '' });
     setTipoCliente('varejo');
-    setIsAddOrEditModalVisible(true);
-  }, []);
+    setIsAddModalVisible(true);
+  };
 
-  const openEditModal = useCallback((cliente: Cliente) => {
-    setCurrentCliente(cliente);
+  const openEditModal = (c: Cliente) => {
+    setCurrentCliente(c);
     setFormState({
-      nome: cliente.nome,
-      telefone: cliente.telefone,
-      email: cliente.email || '',
-      endereco: cliente.endereco || '',
-      cpfCnpj: cliente.cpfCnpj || '',
-      observacoes: cliente.observacoes || '',
+      nome: c.nome,
+      telefone: c.telefone,
+      email: c.email || '',
+      endereco: c.endereco || '',
+      cpfCnpj: c.cpfCnpj || '',
+      observacoes: c.observacoes || '',
     });
-    setTipoCliente(cliente.tipo || 'varejo');
-    setIsAddOrEditModalVisible(true);
-  }, []);
+    setTipoCliente(c.tipo);
+    setIsAddModalVisible(true);
+  };
 
-  const openDeleteModal = useCallback((cliente: Cliente) => {
-    setCurrentCliente(cliente);
+  const openDeleteModal = (c: Cliente) => {
+    setCurrentCliente(c);
     setPasswordInput('');
     setIsDeleteModalVisible(true);
-  }, []);
+  };
 
-  const handleFormChange = useCallback((field: keyof FormState, value: string) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  // --- Funções CRUD ---
-  const handleAddOrUpdateCliente = async () => {
+  const handleSave = async () => {
     const { nome, telefone } = formState;
-    
-    if (!nome.trim() || !telefone.trim()) {
-      return Alert.alert("Atenção", "O nome e o telefone são obrigatórios.");
-    }
-    
+    if (!nome.trim() || !telefone.trim()) return Alert.alert("Erro", "Nome e telefone são obrigatórios.");
     if (!user) return;
-    setIsSaving(true);
 
-    const baseClienteData = {
-        nome: nome.trim(),
-        telefone: telefone.trim(),
-        email: cleanupString(formState.email),
-        endereco: cleanupString(formState.endereco), 
-        cpfCnpj: cleanupString(formState.cpfCnpj),
-        observacoes: cleanupString(formState.observacoes),
-        tipo: tipoCliente,
-        pedidosRealizados: currentCliente?.pedidosRealizados || 0,
-        valorTotalComprado: currentCliente?.valorTotalComprado || 0,
-        updatedAt: new Date().toISOString(), 
+    const clienteData = {
+      ...formState,
+      tipo: tipoCliente,
+      pedidosRealizados: currentCliente?.pedidosRealizados || 0,
+      valorTotalComprado: currentCliente?.valorTotalComprado || 0,
+      dataCadastro: currentCliente?.dataCadastro || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
-    
-    const clienteDataCleaned = filterUndefined(baseClienteData);
-    
+
     try {
       if (currentCliente) {
-        await update(ref(database, `users/${user.uid}/clientes/${currentCliente.id}`), {
-          ...clienteDataCleaned,
-          dataCadastro: currentCliente.dataCadastro,
-        });
-        Alert.alert("✅ Sucesso", "Cliente atualizado com sucesso!");
+        await update(ref(database, `users/${user.uid}/clientes/${currentCliente.id}`), clienteData);
+        Alert.alert("Sucesso", "Cliente atualizado!");
       } else {
-        const newClienteRef = push(ref(database, `users/${user.uid}/clientes`));
-        await set(newClienteRef, {
-          ...clienteDataCleaned,
-          dataCadastro: new Date().toISOString(),
-        });
-        Alert.alert("✅ Sucesso", `Cliente ${nome} cadastrado!`);
+        await set(push(ref(database, `users/${user.uid}/clientes`)), clienteData);
+        Alert.alert("Sucesso", "Cliente cadastrado!");
       }
-      setIsAddOrEditModalVisible(false);
-    } catch (error) {
-      console.error("Erro ao salvar cliente:", error);
-      Alert.alert("❌ Erro", "Ocorreu um erro ao salvar o cliente. Tente novamente.");
-    } finally {
-      setIsSaving(false);
-    }
+      setIsAddModalVisible(false);
+    } catch (e) { Alert.alert("Erro", "Falha ao salvar."); }
   };
 
-  const handleDeleteCliente = async () => {
-    if (passwordInput !== ADMIN_PASSWORD) {
-      return Alert.alert("❌ Falha", "Senha de administrador incorreta.");
-    }
-    
+  const handleDelete = async () => {
+    if (passwordInput !== ADMIN_PASSWORD) return Alert.alert("Erro", "Senha incorreta.");
     if (!user || !currentCliente) return;
-    
-    try {
-      await remove(ref(database, `users/${user.uid}/clientes/${currentCliente.id}`));
-      Alert.alert("✅ Sucesso", "Cliente excluído.");
-      setIsDeleteModalVisible(false);
-      setPasswordInput('');
-    } catch (error) {
-      Alert.alert("❌ Erro", "Não foi possível excluir o cliente.");
-    }
+    await remove(ref(database, `users/${user.uid}/clientes/${currentCliente.id}`));
+    setIsDeleteModalVisible(false);
   };
-
-  const renderItem: ListRenderItem<Cliente> = ({ item }) => (
-    <ClienteCard item={item} onEdit={openEditModal} onDelete={openDeleteModal} />
-  );
-
-  // --- RENDER ---
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0EA5E9" />
-        <Text style={styles.loadingText}>Carregando clientes...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       
-      {/* Header */}
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Clientes</Text>
-          <Text style={styles.subtitle}>{clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'} cadastrados</Text>
+          <Text style={styles.subtitle}>{filteredClientes.length} cadastrados</Text>
         </View>
         <Pressable style={styles.addButton} onPress={openAddModal}>
-          <Ionicons name="add" size={24} color="#fff" />
-          <Text style={styles.addButtonText}>Novo Cliente</Text>
+          <Ionicons name="person-add" size={24} color="#fff" />
         </Pressable>
       </View>
 
-      {/* Lista de Clientes */}
-      {clientes.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="people-outline" size={64} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>Nenhum cliente cadastrado</Text>
-          <Text style={styles.emptyText}>Comece adicionando seu primeiro cliente para gerenciar as vendas.</Text>
-          <Pressable style={styles.emptyButton} onPress={openAddModal}>
-            <Text style={styles.emptyButtonText}>Adicionar Cliente</Text>
-          </Pressable>
+      {/* BUSCA E FILTROS */}
+      <View style={styles.filterSection}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
+          <TextInput 
+            style={styles.searchInput}
+            placeholder="Buscar cliente..."
+            placeholderTextColor="#64748B"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#64748B" />
+            </Pressable>
+          )}
         </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContainer}>
+          {(['todos', 'varejo', 'atacado', 'distribuidor'] as FilterType[]).map((t) => (
+            <Pressable
+              key={t}
+              style={[styles.chip, filterType === t && styles.chipActive]}
+              onPress={() => setFilterType(t)}
+            >
+              <Text style={[styles.chipText, filterType === t && styles.chipTextActive]}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* LISTA */}
+      {loading ? (
+        <View style={styles.centerContainer}><ActivityIndicator size="large" color="#0EA5E9" /></View>
       ) : (
-        <FlatList
-          data={clientes}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          <FlatList
+            data={filteredClientes}
+            renderItem={({ item }) => <ClienteCard item={item} onEdit={openEditModal} onDelete={openDeleteModal} />}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="people-outline" size={64} color="#334155" />
+                <Text style={styles.emptyText}>Nenhum cliente encontrado</Text>
+              </View>
+            }
+          />
+        </Animated.View>
       )}
 
-      {/* MODAL ADICIONAR/EDITAR */}
-      <Modal visible={isAddOrEditModalVisible} animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      {/* MODAL ADD/EDIT */}
+      <Modal visible={isAddModalVisible} animationType="slide" onRequestClose={() => setIsAddModalVisible(false)}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {currentCliente ? 'Editar Cliente' : 'Novo Cliente'}
-            </Text>
-            <Pressable onPress={() => setIsAddOrEditModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#64748B" />
+            <Text style={styles.modalTitle}>{currentCliente ? 'Editar Cliente' : 'Novo Cliente'}</Text>
+            <Pressable onPress={() => setIsAddModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
             </Pressable>
           </View>
-          
-          <ClienteForm
-            formState={formState}
-            onFormChange={handleFormChange}
-            tipo={tipoCliente}
-            onSelectTipo={setTipoCliente}
-          />
-
-          <View style={styles.modalFooter}>
-            <Pressable 
-              style={styles.cancelButton}
-              onPress={() => setIsAddOrEditModalVisible(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.saveButton, (!formState.nome || !formState.telefone || isSaving) && styles.buttonDisabled]} 
-              onPress={handleAddOrUpdateCliente}
-              disabled={!formState.nome || !formState.telefone || isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.saveButtonText}>
-                  {currentCliente ? 'Atualizar' : 'Salvar Cliente'}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+              <ClienteForm 
+                formState={formState} 
+                tipo={tipoCliente}
+                onFormChange={(k, v) => setFormState(p => ({ ...p, [k]: v }))}
+                onSelectTipo={setTipoCliente}
+              />
+              <View style={styles.modalButtons}>
+                <Pressable style={styles.cancelButton} onPress={() => setIsAddModalVisible(false)}>
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </Pressable>
+                <Pressable style={styles.saveButton} onPress={handleSave}>
+                  <Text style={styles.saveButtonText}>Salvar</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
-      {/* MODAL DELETAR */}
-      <Modal visible={isDeleteModalVisible} transparent animationType="fade">
-        <View style={styles.centeredModal}>
-          <View style={styles.deleteModalContent}>
-            <View style={styles.deleteHeader}>
-              <Ionicons name="warning" size={32} color="#EF4444" />
-              <Text style={styles.deleteTitle}>Excluir Cliente</Text>
-            </View>
-            
-            <Text style={styles.deleteModalText}>
-              Tem certeza que deseja excluir o cliente{" "}
-              <Text style={styles.deleteHighlight}>"{currentCliente?.nome}"</Text>?
-            </Text>
-            
-            <View style={styles.passwordContainer}>
-              <Text style={styles.passwordLabel}>Senha de Administrador</Text>
-              <TextInput 
-                style={styles.passwordInput}
-                placeholder="Digite a senha"
-                secureTextEntry
-                value={passwordInput}
-                onChangeText={setPasswordInput}
-              />
-            </View>
-
-            <View style={styles.deleteActions}>
-              <Pressable 
-                style={styles.cancelDeleteButton}
-                onPress={() => setIsDeleteModalVisible(false)}
-              >
+      {/* MODAL DELETE */}
+      <Modal visible={isDeleteModalVisible} transparent animationType="fade" onRequestClose={() => setIsDeleteModalVisible(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.deleteCard}>
+            <Ionicons name="warning" size={40} color="#EF4444" />
+            <Text style={styles.deleteTitle}>Excluir Cliente</Text>
+            <Text style={styles.deleteText}>Confirme a senha para excluir "{currentCliente?.nome}".</Text>
+            <TextInput 
+              style={styles.passwordInput} 
+              placeholder="Senha" 
+              placeholderTextColor="#64748B" 
+              secureTextEntry 
+              value={passwordInput} 
+              onChangeText={setPasswordInput} 
+            />
+            <View style={styles.deleteButtons}>
+              <Pressable style={styles.cancelDeleteButton} onPress={() => setIsDeleteModalVisible(false)}>
                 <Text style={styles.cancelDeleteText}>Cancelar</Text>
               </Pressable>
-              <Pressable 
-                style={[styles.confirmDeleteButton, !passwordInput && styles.buttonDisabled]}
-                onPress={handleDeleteCliente}
-                disabled={!passwordInput}
-              >
+              <Pressable style={styles.confirmDeleteButton} onPress={handleDelete}>
                 <Text style={styles.confirmDeleteText}>Excluir</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
 
-// --- STYLES ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#64748B',
-  },
-
+  container: { flex: 1, backgroundColor: '#0F172A' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  
   // Header
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 40) + 10,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0F172A',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 4,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0EA5E9',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    gap: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-
-  // Empty State
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  emptyButton: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-
-  // List
-  listContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 12,
-  },
-
-  // Cliente Card
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-    overflow: 'hidden',
-  },
-  cardBorder: {
-    width: 6,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 14,
-  },
-  cardHeader: {
+    paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    backgroundColor: '#1E293B',
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    flex: 1,
-    marginRight: 10,
-  },
-  tipoBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  tipoText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  cardDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  cardDetailText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 12,
-    marginTop: 12,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  editText: {
-    color: '#0EA5E9',
-    fontWeight: '600',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  // CORREÇÃO: Novo nome de estilo para o texto do card
-  deleteCardText: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
+  title: { fontSize: 24, fontWeight: '800', color: '#fff' },
+  subtitle: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
+  addButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#0EA5E9', justifyContent: 'center', alignItems: 'center' },
 
-  // Form
-  formContainer: {
-    flex: 1,
-    padding: 20,
-  },
-  formSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginBottom: 12,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
-  },
-  optionActive: {
-    borderColor: '#0EA5E9',
-    backgroundColor: '#F0F9FF',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#374151',
-    marginLeft: 6,
-    textTransform: 'capitalize',
-  },
-  optionTextActive: {
-    color: '#0EA5E9',
-    fontWeight: '600',
-  },
-  spacer: {
-    height: 60,
-  },
+  // Filtros
+  filterSection: { backgroundColor: '#1E293B', paddingBottom: 16 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0F172A', marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 12, marginBottom: 12, borderWidth: 1, borderColor: '#334155' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, height: 48, color: '#fff', fontSize: 16 },
+  chipsContainer: { paddingHorizontal: 20 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#0F172A', marginRight: 8, borderWidth: 1, borderColor: '#334155' },
+  chipActive: { backgroundColor: '#0EA5E9', borderColor: '#0EA5E9' },
+  chipText: { color: '#94A3B8', fontWeight: '600', fontSize: 13 },
+  chipTextActive: { color: '#fff' },
 
-  // Modal
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#fff',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0F172A',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    backgroundColor: '#fff',
-    gap: 12,
-  },
-  saveButton: {
-    flex: 2,
-    backgroundColor: '#10B981',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
+  // Lista
+  listContent: { padding: 20 },
+  card: { backgroundColor: '#1E293B', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center' },
+  cardAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  cardInfo: { flex: 1 },
+  cardName: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
+  cardBadges: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  badgeText: { fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
+  statsBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(245,158,11,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  statsText: { color: '#F59E0B', fontSize: 10, fontWeight: 'bold' },
+  
+  divider: { height: 1, backgroundColor: '#334155', marginVertical: 16 },
+  contactRow: { flexDirection: 'row', gap: 16, marginBottom: 12 },
+  contactItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  contactIconBox: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center' },
+  contactText: { color: '#E2E8F0', fontSize: 13, fontWeight: '500' },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, backgroundColor: '#0F172A', padding: 8, borderRadius: 8 },
+  addressText: { color: '#94A3B8', fontSize: 12, flex: 1 },
+  
+  cardActions: { flexDirection: 'row', gap: 10 },
+  actionButton: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 8, gap: 6, borderWidth: 1 },
+  editButton: { borderColor: '#0EA5E9', backgroundColor: 'rgba(14, 165, 233, 0.1)' },
+  deleteButton: { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+  actionText: { fontSize: 13, fontWeight: 'bold' },
 
-  // Delete Modal
-  centeredModal: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 20,
-  },
-  deleteModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 380,
-    alignItems: 'center',
-  },
-  deleteHeader: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  deleteTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#EF4444',
-    marginTop: 8,
-  },
-  // CORREÇÃO: Estilo do texto principal do modal (seu bloco de código original)
-  deleteModalText: {
-    fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  deleteHighlight: {
-    fontWeight: 'bold',
-    color: '#0F172A',
-  },
-  passwordContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  passwordLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  passwordInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  deleteActions: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  confirmDeleteButton: {
-    flex: 1,
-    backgroundColor: '#EF4444',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  confirmDeleteText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  cancelDeleteButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-  },
-  cancelDeleteText: {
-    color: '#374151',
-    fontWeight: '600',
-    fontSize: 16,
-  },
+  emptyState: { alignItems: 'center', marginTop: 60 },
+  emptyText: { color: '#64748B', marginTop: 16 },
+
+  // Modal Form
+  modalContainer: { flex: 1, backgroundColor: '#0F172A' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#1E293B' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+  formContainer: { gap: 16 },
+  inputGroup: { marginBottom: 16 },
+  inputLabel: { color: '#94A3B8', marginBottom: 8, fontSize: 12, fontWeight: '600' },
+  inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E293B', borderRadius: 12, borderWidth: 1, borderColor: '#334155' },
+  inputIcon: { marginLeft: 12 },
+  input: { flex: 1, padding: 14, fontSize: 15, color: '#fff' },
+  inputSimple: { backgroundColor: '#1E293B', borderRadius: 12, padding: 14, fontSize: 15, color: '#fff', borderWidth: 1, borderColor: '#334155' },
+  inputRow: { flexDirection: 'row', gap: 12 },
+  textArea: { minHeight: 80, textAlignVertical: 'top' },
+  typeSelector: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  typeOption: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', backgroundColor: '#1E293B' },
+  typeText: { color: '#94A3B8', fontSize: 12 },
+  
+  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 40 },
+  cancelButton: { flex: 1, padding: 16, backgroundColor: '#334155', borderRadius: 12, alignItems: 'center' },
+  cancelButtonText: { color: '#fff', fontWeight: '600' },
+  saveButton: { flex: 1, padding: 16, backgroundColor: '#0EA5E9', borderRadius: 12, alignItems: 'center' },
+  saveButtonText: { color: '#fff', fontWeight: '600' },
+
+  // Modal Delete
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
+  deleteCard: { backgroundColor: '#1E293B', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
+  deleteTitle: { fontSize: 20, fontWeight: 'bold', color: '#EF4444', marginVertical: 12 },
+  deleteText: { color: '#CBD5E1', textAlign: 'center', marginBottom: 20 },
+  passwordInput: { backgroundColor: '#0F172A', width: '100%', padding: 12, borderRadius: 8, color: '#fff', borderWidth: 1, borderColor: '#334155', marginBottom: 20 },
+  deleteButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  cancelDeleteButton: { flex: 1, padding: 12, backgroundColor: '#334155', borderRadius: 8, alignItems: 'center' },
+  cancelDeleteText: { color: '#fff', fontWeight: 'bold' },
+  confirmDeleteButton: { flex: 1, padding: 12, backgroundColor: '#EF4444', borderRadius: 8, alignItems: 'center' },
+  confirmDeleteText: { color: '#fff', fontWeight: 'bold' },
 });

@@ -8,7 +8,7 @@ import {
   FlatList,
   ListRenderItem,
   Modal,
-  Platform, // <--- ADICIONADO AQUI
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
@@ -22,7 +22,7 @@ import { auth, database } from "../services/connectionFirebase";
 
 const { width } = Dimensions.get('window');
 
-// Interface atualizada
+// Interface
 interface BiometriaCompleta {
   id: string;
   data: string;
@@ -115,7 +115,7 @@ export default function BiometriaScreen() {
     const qtdFinal = qtdAtual - mort;
     const biomassaTotalEstimada = (pesoMedioCalculado * qtdFinal) / 1000;
     
-    // Comprimento estimado (relação peso-comprimento padrão tilápia se não informado)
+    // Comprimento estimado
     const compMedio = comprimentoMedio ? parseFloat(comprimentoMedio) : 
       Math.pow(pesoMedioCalculado / 0.016, 1/3); 
     
@@ -138,10 +138,9 @@ export default function BiometriaScreen() {
       }
     }
 
-    // Sobrevivência Global
+    // Sobrevivência
     const sobrevivencia = ((qtdFinal / selectedLote.quantidadeInicial) * 100) || 0;
     
-    // Uniformidade (simulada para exemplo, idealmente viria da variância da amostra)
     const uniformidade = 90; 
 
     return {
@@ -200,7 +199,6 @@ export default function BiometriaScreen() {
         observacoes,
       });
 
-      // Atualiza Lote
       await update(ref(database, `users/${user.uid}/lots/${selectedLote.id}`), { 
         quantidade: ultimoCalculo.quantidadeFinal,
         updatedAt: new Date().toISOString()
@@ -208,7 +206,6 @@ export default function BiometriaScreen() {
 
       Alert.alert("Sucesso", "Biometria registrada!");
       
-      // Reset
       setPesoAmostra(''); setNumPeixesAmostra(''); setComprimentoMedio('');
       setMortalidade(''); setRacaoConsumida(''); setObservacoes('');
       setUltimoCalculo(null);
@@ -222,8 +219,8 @@ export default function BiometriaScreen() {
 
   const getStatusColor = (valor: number, tipo: 'tcd' | 'caa' | 'sobrevivencia') => {
     switch (tipo) {
-      case 'tcd': return valor > 2 ? '#10B981' : valor > 1 ? '#F59E0B' : '#EF4444'; // Maior é melhor
-      case 'caa': return valor > 0 && valor < 1.5 ? '#10B981' : valor < 1.8 ? '#F59E0B' : '#EF4444'; // Menor é melhor
+      case 'tcd': return valor > 2 ? '#10B981' : valor > 1 ? '#F59E0B' : '#EF4444'; 
+      case 'caa': return valor > 0 && valor < 1.5 ? '#10B981' : valor < 1.8 ? '#F59E0B' : '#EF4444'; 
       case 'sobrevivencia': return valor > 90 ? '#10B981' : valor > 80 ? '#F59E0B' : '#EF4444';
       default: return '#94A3B8';
     }
@@ -424,14 +421,14 @@ export default function BiometriaScreen() {
         </>
       )}
 
-      {/* MODAL SELEÇÃO LOTE */}
+      {/* MODAL SELEÇÃO LOTE (AGORA ESCURO) */}
       <Modal visible={isLoteModalVisible} transparent animationType="slide" onRequestClose={() => setIsLoteModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecione o Lote</Text>
               <Pressable onPress={() => setIsLoteModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
+                <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
             <FlatList 
@@ -515,12 +512,12 @@ const styles = StyleSheet.create({
   emptyText: { color: '#64748B', textAlign: 'center', fontStyle: 'italic', marginTop: 10 },
   emptyTextModal: { color: '#64748B', textAlign: 'center', padding: 20 },
 
-  // Modal
+  // Modal (ATUALIZADO PARA DARK)
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '60%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#0F172A' },
-  loteItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  loteItemTitle: { fontSize: 16, fontWeight: 'bold', color: '#0F172A' },
-  loteItemSubtitle: { color: '#64748B' },
+  modalContent: { backgroundColor: '#1E293B', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '60%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  loteItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  loteItemTitle: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+  loteItemSubtitle: { color: '#94A3B8' },
 });

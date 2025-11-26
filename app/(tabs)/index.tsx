@@ -1,9 +1,9 @@
-// src/navigation/RootStack.tsx (ou o caminho que você estiver usando)
+// app/(tabs)/index.tsx
 
 import { createStackNavigator } from '@react-navigation/stack';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StatusBar, View } from 'react-native';
 
 import { CarrinhoProvider } from '../../src/context/CarrinhoContext';
 import { auth } from '../../src/services/connectionFirebase';
@@ -15,7 +15,8 @@ import RegisterScreen from '../../src/screens/Auth/RegisterScreen';
 import BiometriaScreen from '../../src/screens/BiometriaScreen';
 import CarrinhoScreen from '../../src/screens/CarrinhoScreen';
 import DashboardScreen from '../../src/screens/DashboardScreen';
-import HomeScreen from '../../src/screens/HomeScreen';
+// HomeScreen removida daqui
+import ClientesScreen from '../../src/screens/ClientesScreen';
 import ListaUsuarios from '../../src/screens/ListaUsuarios';
 import LotesScreen from '../../src/screens/LotesScreen';
 import PedidosScreen from '../../src/screens/PedidosScreen';
@@ -23,11 +24,9 @@ import PeixesScreen from '../../src/screens/PeixesScreen';
 import PerfilScreen from '../../src/screens/PerfilScreen';
 import TanquesScreen from '../../src/screens/TanquesScreen';
 import PlaceholderScreen from '../../src/screens/TelaPlaceholder';
-// NOVO: Importar a tela de Clientes
-import ClientesScreen from '../../src/screens/ClientesScreen';
 
 // =====================================================================
-// TIPOS (o tipo Cliente foi corrigido)
+// TIPOS
 // =====================================================================
 
 export type Tanque = {
@@ -52,10 +51,6 @@ export type Peixe = {
   temperaturaIdeal: string;
   phIdeal: string;
   observacoes?: string;
-  oxigenioIdeal?: string;
-  salinidadeIdeal?: string;
-  dietaRecomendada?: string;
-  cicloVida?: string;
 };
 
 export type Lote = {
@@ -87,58 +82,6 @@ export type AlimentacaoRegistro = {
   sobrasEstimadas: number;
   biomassaCalculada: number;
   taxaAlimentarAplicada: number;
-  tipoRacao?: string;
-  frequenciaAlimentacao?: number;
-  conversaoAlimentar?: number;
-  custoRacao?: number;
-  observacoes?: string;
-};
-
-export type BiometriaRegistro = {
-  id: string;
-  data: string;
-  loteId: string;
-  loteNome: string;
-  pesoMedioCalculado: number;
-  biomassaTotalEstimada: number;
-  mortalidadeRegistrada: number;
-  observacoes?: string;
-  comprimentoMedio?: number;
-  taxaCrescimentoDiario?: number;
-  conversaoAlimentar?: number;
-  uniformidade?: number;
-  sobrevivencia?: number;
-  quantidadePeixesInicial?: number;
-  quantidadePeixesAtual?: number;
-  racaoConsumida?: number;
-  ganhoPesoDiario?: number;
-  fatorCondicao?: number;
-  biomassaPorMetroCubico?: number;
-  diasCultivo?: number;
-  temperaturaAgua?: number;
-  phAgua?: number;
-  oxigenioDissolvido?: number;
-  amonia?: number;
-  nitrito?: number;
-};
-
-export type QualidadeAguaRegistro = {
-  id: string;
-  data: string;
-  tanqueId: string;
-  tanqueNome: string;
-  loteId?: string;
-  loteNome?: string;
-  temperatura: number;
-  ph: number;
-  oxigenioDissolvido: number;
-  amonia: number;
-  nitrito: number;
-  nitrato: number;
-  transparencia?: number;
-  alcalinidade?: number;
-  dureza?: number;
-  observacoes?: string;
 };
 
 export type CarrinhoItem = {
@@ -146,9 +89,9 @@ export type CarrinhoItem = {
   loteId: string;
   loteNome: string;
   produtoNome: string;
-  quantidade: number;      // Mudou de quantidadeKg para quantidade (genérico)
-  precoUnitario: number;   // Mudou de precoUnitarioKg para precoUnitario
-  unidade: 'kg' | 'milheiro' | 'unidade'; // NOVO CAMPO
+  quantidade: number;     
+  precoUnitario: number;   
+  unidade: 'kg' | 'milheiro' | 'unidade';
   observacoes?: string;
 };
 
@@ -166,30 +109,10 @@ export type Pedido = {
   telefoneCliente?: string;
   emailCliente?: string;
   enderecoEntrega?: string;
-  especie?: string;
-  tamanho?: string;
-  observacoes?: string;
-  prioridade?: 'baixa' | 'media' | 'alta';
   formaPagamento?: 'dinheiro' | 'cartao' | 'transferencia' | 'pix';
   statusPagamento?: 'pendente' | 'pago' | 'parcial';
   itensCarrinho?: CarrinhoItem[];
-};
-
-export type Relatorio = {
-  id: string;
-  tipo: 'producao' | 'vendas' | 'biometria' | 'alimentacao' | 'qualidade_agua';
-  periodo: 'diario' | 'semanal' | 'mensal' | 'anual';
-  dataInicio: string;
-  dataFim: string;
-  metricas: {
-    producaoTotal?: number;
-    vendasTotal?: number;
-    taxaSobrevivenciaMedia?: number;
-    conversaoAlimentarMedia?: number;
-    custoProducao?: number;
-    lucro?: number;
-  };
-  createdAt: string;
+  prioridade?: 'baixa' | 'media' | 'alta';
 };
 
 export type Cliente = {
@@ -204,51 +127,7 @@ export type Cliente = {
   dataCadastro: string;
   pedidosRealizados: number;
   valorTotalComprado: number;
-  updatedAt?: string; // <<--- CORREÇÃO APLICADA AQUI
-};
-
-export type Fornecedor = {
-  id: string;
-  nome: string;
-  tipo: 'racao' | 'alevino' | 'equipamento' | 'outros';
-  telefone: string;
-  email?: string;
-  endereco?: string;
-  produtosFornecidos: string[];
-  avaliacao?: number;
-  observacoes?: string;
-  dataCadastro: string;
-};
-
-export type EstoqueRacao = {
-  id: string;
-  tipoRacao: string;
-  marca?: string;
-  quantidade: number;
-  unidade: 'kg' | 'saco';
-  pesoPorSaco?: number;
-  dataCompra: string;
-  dataValidade: string;
-  fornecedorId: string;
-  fornecedorNome: string;
-  custoUnitario: number;
-  localArmazenamento?: string;
-  observacoes?: string;
-};
-
-export type Manutencao = {
-  id: string;
-  tipo: 'preventiva' | 'corretiva' | 'preditiva';
-  equipamento: string;
-  tanqueId?: string;
-  descricao: string;
-  dataProgramada: string;
-  dataRealizacao?: string;
-  status: 'agendada' | 'em_andamento' | 'concluida' | 'cancelada';
-  custo?: number;
-  responsavel: string;
-  observacoes?: string;
-  createdAt: string;
+  updatedAt?: string;
 };
 
 // =====================================================================
@@ -256,7 +135,7 @@ export type Manutencao = {
 // =====================================================================
 
 export type RootStackParamList = {
-  Home: undefined;
+  // Home removida
   Login: undefined;
   Register: undefined;
   Dashboard: undefined;
@@ -270,7 +149,7 @@ export type RootStackParamList = {
   ListaUsuarios: undefined;
   Pedidos: undefined;
   Carrinho: undefined;
-  Clientes: undefined; // NOVO: Adiciona a tela de Clientes
+  Clientes: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -282,13 +161,13 @@ const Stack = createStackNavigator<RootStackParamList>();
 function AuthStack() {
   return (
     <Stack.Navigator
+      initialRouteName="Login" // Agora começa direto no Login
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
-        cardStyle: { backgroundColor: '#fff' },
+        cardStyle: { backgroundColor: '#0F172A' }, // Fundo escuro para evitar flash branco
       }}
     >
-      <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
@@ -301,7 +180,7 @@ function AppStack() {
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
-        cardStyle: { backgroundColor: '#f8fafc' },
+        cardStyle: { backgroundColor: '#0F172A' }, // Fundo escuro padrão
         animation: 'slide_from_right',
       }}
     >
@@ -322,7 +201,7 @@ function AppStack() {
 }
 
 // =====================================================================
-// ROOT STACK (decide entre Auth ou App pela autenticação)
+// ROOT STACK
 // =====================================================================
 
 export default function RootStack() {
@@ -345,20 +224,18 @@ export default function RootStack() {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#f8fafc',
+          backgroundColor: '#0F172A', // Loading escuro também
         }}
       >
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#0EA5E9" />
       </View>
     );
   }
 
-  // Envolver AppStack com CarrinhoProvider
-  return user ? (
+  return (
     <CarrinhoProvider>
-      <AppStack />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      {user ? <AppStack /> : <AuthStack />}
     </CarrinhoProvider>
-  ) : (
-    <AuthStack />
   );
 }

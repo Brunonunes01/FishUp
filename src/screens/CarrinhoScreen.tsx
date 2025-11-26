@@ -68,17 +68,15 @@ const CarrinhoCard = memo(({ item, onRemove }: { item: CarrinhoItem, onRemove: (
 
 export default function CarrinhoScreen() {
   const navigation = useNavigation<NavigationProps>();
+  
   const user = auth.currentUser;
   const { carrinho, total, removerItem, limparCarrinho, adicionarItem } = useCarrinho();
   const insets = useSafeAreaInsets();
 
-  // Estados
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [loadingClientes, setLoadingClientes] = useState(true);
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [lotes, setLotes] = useState<Lote[]>([]);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   
-  // Modais
   const [modais, setModais] = useState({
     cliente: false,
     checkout: false,
@@ -86,18 +84,15 @@ export default function CarrinhoScreen() {
     addItem: false
   });
 
-  // Venda
   const [dataEntrega, setDataEntrega] = useState(new Date().toLocaleDateString('pt-BR'));
   const [formaPagamento, setFormaPagamento] = useState<PaymentType>('pix');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Adição de Item
   const [selectedLoteToAdd, setSelectedLoteToAdd] = useState<Lote | null>(null);
   const [newItemQtd, setNewItemQtd] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemUnit, setNewItemUnit] = useState<UnitType>('kg');
 
-  // --- Carregamento de Dados ---
   useEffect(() => {
     if (!user) return;
 
@@ -108,7 +103,6 @@ export default function CarrinhoScreen() {
       const data = snap.val();
       const lista = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
       setClientes(lista.sort((a, b) => a.nome.localeCompare(b.nome)));
-      setLoadingClientes(false);
     });
 
     const unsubLotes = onValue(lotesRef, (snap) => {
@@ -124,7 +118,6 @@ export default function CarrinhoScreen() {
     setModais(prev => ({ ...prev, [key]: value }));
   };
 
-  // --- Lógica de Adicionar ---
   const handleSelectLoteToAdd = (lote: Lote) => {
     setSelectedLoteToAdd(lote);
     setNewItemQtd('');
@@ -158,7 +151,12 @@ export default function CarrinhoScreen() {
     toggleModal('addItem', false);
   };
 
-  // --- Lógica de Checkout ---
+  const handleNavigateToNewClient = () => {
+    toggleModal('cliente', false);
+    toggleModal('checkout', false);
+    navigation.navigate("Clientes");
+  };
+
   const handleConfirmarPedido = async () => {
     if (!selectedCliente) return Alert.alert("Erro", "Selecione um cliente.");
     
@@ -166,7 +164,6 @@ export default function CarrinhoScreen() {
     try {
       if (!user) throw new Error("Usuário inválido");
       
-      // Resumo dos produtos para salvar no pedido
       const resumoProdutos = carrinho.map(i => {
         const unidade = i.unidade || 'kg';
         return `${i.produtoNome} (${unidade})`;
@@ -199,7 +196,7 @@ export default function CarrinhoScreen() {
       toggleModal('checkout', false);
       limparCarrinho();
       Alert.alert("Sucesso", "Venda realizada!");
-      navigation.navigate("Pedidos" as any);
+      navigation.navigate("Pedidos");
     } catch (error) {
       Alert.alert("Erro", "Falha ao salvar pedido.");
     } finally {
@@ -237,15 +234,14 @@ export default function CarrinhoScreen() {
         </Pressable>
       </View>
 
-      {/* LISTA DE ITENS (Com flex: 1 para ocupar o espaço central) */}
+      {/* LISTA DE ITENS */}
       <FlatList
         data={carrinho}
         renderItem={renderItem}
         keyExtractor={item => item.id}
-        // Removemos o padding gigante, pois o footer não é mais absoluto
-        contentContainerStyle={styles.listContent} 
+        contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={ItemSeparator}
-        style={{ flex: 1 }} // IMPORTANTE: Faz a lista ocupar o espaço disponível
+        style={{ flex: 1 }}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="cart-outline" size={64} color="#334155" />
@@ -254,7 +250,7 @@ export default function CarrinhoScreen() {
         }
       />
 
-      {/* FOOTER (Sem position absolute, apenas fixo no final do flex container) */}
+      {/* FOOTER */}
       {carrinho.length > 0 && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <View>
@@ -268,16 +264,16 @@ export default function CarrinhoScreen() {
         </View>
       )}
 
-      {/* --- MODAIS (Mantidos iguais, focando na correção do layout principal) --- */}
+      {/* --- MODAIS --- */}
       
-      {/* SELECIONAR LOTE */}
+      {/* SELECIONAR LOTE (ESCURO) */}
       <Modal visible={modais.listaLotes} animationType="slide" transparent onRequestClose={() => toggleModal('listaLotes', false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContentFull}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecione o Produto</Text>
               <Pressable onPress={() => toggleModal('listaLotes', false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
+                <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
             <FlatList
@@ -292,19 +288,20 @@ export default function CarrinhoScreen() {
                   <Ionicons name="add-circle-outline" size={28} color="#0EA5E9" />
                 </Pressable>
               )}
+              ListEmptyComponent={<Text style={{color:'#94A3B8', textAlign:'center', marginTop: 20}}>Sem lotes ativos.</Text>}
             />
           </View>
         </View>
       </Modal>
 
-      {/* QTD e PREÇO */}
+      {/* QTD e PREÇO (ESCURO E CORRIGIDO) */}
       <Modal visible={modais.addItem} transparent animationType="fade" onRequestClose={() => toggleModal('addItem', false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.centeredModal}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitleCenter}>Adicionar Item</Text>
             <Text style={styles.modalSubtitleCenter}>{selectedLoteToAdd?.nomeLote}</Text>
             
-            {/* SELETOR DE UNIDADE */}
+            {/* SELETOR DE UNIDADE (CORRIGIDO) */}
             <View style={styles.unitSelector}>
               <Pressable style={[styles.unitOption, newItemUnit === 'kg' && styles.unitOptionActive]} onPress={() => setNewItemUnit('kg')}>
                 <Text style={[styles.unitText, newItemUnit === 'kg' && styles.unitTextActive]}>KG</Text>
@@ -316,12 +313,12 @@ export default function CarrinhoScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>{newItemUnit === 'kg' ? 'Quantidade (Kg)' : 'Quantidade (Un)'}</Text>
-              <TextInput style={styles.input} keyboardType="numeric" placeholder="0.0" value={newItemQtd} onChangeText={setNewItemQtd} autoFocus />
+              <TextInput style={styles.input} keyboardType="numeric" placeholder="0.0" placeholderTextColor="#64748B" value={newItemQtd} onChangeText={setNewItemQtd} autoFocus />
             </View>
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>{newItemUnit === 'kg' ? 'Preço (R$/Kg)' : 'Preço (R$/Mil)'}</Text>
-              <TextInput style={styles.input} keyboardType="numeric" placeholder="0.00" value={newItemPrice} onChangeText={setNewItemPrice} />
+              <TextInput style={styles.input} keyboardType="numeric" placeholder="0.00" placeholderTextColor="#64748B" value={newItemPrice} onChangeText={setNewItemPrice} />
             </View>
 
             <View style={styles.modalActions}>
@@ -336,14 +333,14 @@ export default function CarrinhoScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* CHECKOUT */}
+      {/* CHECKOUT (ESCURO) */}
       <Modal visible={modais.checkout} animationType="slide" transparent onRequestClose={() => toggleModal('checkout', false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContentFull, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Finalizar Venda</Text>
               <Pressable onPress={() => toggleModal('checkout', false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
+                <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
             
@@ -362,7 +359,7 @@ export default function CarrinhoScreen() {
               </Pressable>
 
               <Text style={styles.sectionTitle}>Data de Entrega</Text>
-              <TextInput style={styles.input} value={dataEntrega} onChangeText={setDataEntrega} />
+              <TextInput style={styles.input} value={dataEntrega} onChangeText={setDataEntrega} placeholderTextColor="#64748B" />
 
               <Text style={styles.sectionTitle}>Pagamento</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 20}}>
@@ -388,27 +385,36 @@ export default function CarrinhoScreen() {
         </View>
       </Modal>
 
-      {/* LISTA CLIENTES */}
+      {/* LISTA CLIENTES (ESCURO) */}
       <Modal visible={modais.cliente} animationType="slide" transparent onRequestClose={() => toggleModal('cliente', false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContentFull}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecionar Cliente</Text>
               <Pressable onPress={() => toggleModal('cliente', false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
+                <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
             <FlatList
               data={clientes}
               keyExtractor={i => i.id}
               renderItem={({ item }) => (
-                <Pressable style={styles.clienteItem} onPress={() => { setSelectedCliente(item); toggleModal('cliente', false); toggleModal('checkout', true); }}>
+                <Pressable 
+                  style={styles.clienteItem} 
+                  onPress={() => { setSelectedCliente(item); toggleModal('cliente', false); toggleModal('checkout', true); }}
+                >
                   <View style={styles.avatar}><Text style={styles.avatarText}>{item.nome[0]}</Text></View>
-                  <View><Text style={styles.clienteNome}>{item.nome}</Text><Text style={styles.clienteTel}>{item.telefone}</Text></View>
+                  <View>
+                    <Text style={styles.clienteNome}>{item.nome}</Text>
+                    <Text style={styles.clienteTel}>{item.telefone}</Text>
+                  </View>
                 </Pressable>
               )}
             />
-            <Pressable style={styles.btnNovoCliente} onPress={() => { toggleModal('cliente', false); navigation.navigate('Clientes' as any); }}>
+            <Pressable 
+              style={styles.btnNovoCliente} 
+              onPress={handleNavigateToNewClient}
+            >
               <Text style={styles.btnNovoClienteText}>Cadastrar Novo Cliente</Text>
             </Pressable>
           </View>
@@ -424,22 +430,20 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#1E293B' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   subtitle: { color: '#94A3B8' },
-  limparButton: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 8 },
+  limparButton: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 8 },
   limparButtonText: { color: '#EF4444', fontWeight: 'bold' },
   
   addItemWrapper: { padding: 16, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
   addItemButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 12, backgroundColor: 'rgba(14,165,233,0.15)', borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: '#0EA5E9' },
   addItemText: { color: '#0EA5E9', fontWeight: 'bold', fontSize: 16 },
 
-  // LISTA CORRIGIDA: Padding normal
   listContent: { padding: 16, paddingBottom: 20 },
-  itemSeparator: { height: 12 },
+  itemSeparator: { height: 12, backgroundColor: '#334155', marginVertical: 8 },
   
-  // CARD
   card: { backgroundColor: '#1E293B', borderRadius: 12, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   cardInfo: { flex: 1, marginRight: 10 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 4 },
-  cardSubtitle: { fontSize: 13, color: '#94A3B8' },
+  cardSubtitle: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
   cardDetails: { fontSize: 13, color: '#CBD5E1', marginTop: 4 },
   cardRight: { alignItems: 'flex-end', justifyContent: 'space-between', height: 70 },
   cardTotal: { fontSize: 16, fontWeight: 'bold', color: '#10B981' },
@@ -448,68 +452,70 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', marginTop: 60 },
   emptyText: { color: '#64748B', marginTop: 16, fontSize: 18 },
 
-  // FOOTER CORRIGIDO: Sem absolute, estilo padrão Flex
   footer: { width: '100%', backgroundColor: '#1E293B', padding: 20, borderTopWidth: 1, borderTopColor: '#334155', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { color: '#94A3B8', fontSize: 12 },
   totalValue: { color: '#10B981', fontSize: 24, fontWeight: 'bold' },
   btnContinuar: { backgroundColor: '#0EA5E9', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   btnContinuarText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  // Modais
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContentFull: { backgroundColor: '#fff', height: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#0F172A' },
   
-  // Lista Lotes
-  loteItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', alignItems: 'center' },
-  loteTitle: { fontSize: 16, fontWeight: 'bold', color: '#0F172A' },
-  loteSubtitle: { color: '#64748B' },
+  // Modal Full
+  modalContentFull: { backgroundColor: '#1E293B', height: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
+  
+  // Lista Lotes (Modal)
+  loteItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155', alignItems: 'center' },
+  loteTitle: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
+  loteSubtitle: { color: '#94A3B8' },
 
-  // Modal Add Item
-  centeredModal: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 20 },
-  modalCard: { backgroundColor: '#fff', width: '100%', maxWidth: 340, borderRadius: 20, padding: 24 },
-  modalTitleCenter: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#0F172A' },
-  modalSubtitleCenter: { textAlign: 'center', color: '#64748B', marginBottom: 20 },
+  // Modal Pequeno (Add Item)
+  centeredModal: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: 20 },
+  modalCard: { backgroundColor: '#1E293B', width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: '#334155' },
+  modalTitleCenter: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', color: '#FFF' },
+  modalSubtitleCenter: { textAlign: 'center', color: '#94A3B8', marginBottom: 20 },
+  
   inputGroup: { marginBottom: 16 },
-  label: { color: '#334155', fontWeight: '600', marginBottom: 6 },
-  input: { backgroundColor: '#F1F5F9', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', fontSize: 16 },
+  label: { color: '#94A3B8', fontWeight: '600', marginBottom: 6 },
+  input: { backgroundColor: '#0F172A', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', fontSize: 16, color: '#FFF' },
+  
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  btnCancel: { flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', alignItems: 'center' },
-  btnCancelText: { color: '#334155', fontWeight: '600' },
+  btnCancel: { flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', alignItems: 'center' },
+  btnCancelText: { color: '#94A3B8', fontWeight: '600' },
   btnConfirm: { flex: 1, padding: 12, borderRadius: 8, backgroundColor: '#0EA5E9', alignItems: 'center' },
   btnConfirmText: { color: '#fff', fontWeight: '600' },
 
-  // Unit Selector
-  unitSelector: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 10, padding: 4, marginBottom: 20 },
+  // Unit Selector (Corrigido para Dark)
+  unitSelector: { flexDirection: 'row', backgroundColor: '#0F172A', borderRadius: 10, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
   unitOption: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  unitOptionActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  unitText: { fontWeight: '600', color: '#64748B', fontSize: 12 },
-  unitTextActive: { color: '#0F172A', fontWeight: 'bold' },
+  unitOptionActive: { backgroundColor: '#334155' },
+  unitText: { fontWeight: '600', color: '#94A3B8', fontSize: 12 },
+  unitTextActive: { color: '#FFF', fontWeight: 'bold' },
 
   // Checkout
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#64748B', marginTop: 20, marginBottom: 8, textTransform: 'uppercase' },
-  selectButton: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  selectedText: { fontSize: 16, fontWeight: 'bold', color: '#0F172A' },
-  selectedSubtext: { color: '#64748B' },
+  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#94A3B8', marginTop: 20, marginBottom: 8, textTransform: 'uppercase' },
+  selectButton: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#0F172A', borderRadius: 12, borderWidth: 1, borderColor: '#334155' },
+  selectedText: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
+  selectedSubtext: { color: '#94A3B8' },
   placeholderText: { color: '#64748B', fontSize: 16 },
-  chip: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#F1F5F9', borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  chip: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#0F172A', borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#334155' },
   chipActive: { backgroundColor: '#0EA5E9', borderColor: '#0EA5E9' },
-  chipText: { color: '#64748B', fontWeight: '600', textTransform: 'capitalize' },
+  chipText: { color: '#94A3B8', fontWeight: '600', textTransform: 'capitalize' },
   chipTextActive: { color: '#fff' },
-  resumoBox: { backgroundColor: '#F0F9FF', padding: 20, borderRadius: 12, alignItems: 'center', marginTop: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#BAE6FD' },
-  resumoLabel: { color: '#0C4A6E', fontWeight: '600' },
+  resumoBox: { backgroundColor: '#0F172A', padding: 20, borderRadius: 12, alignItems: 'center', marginTop: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#334155' },
+  resumoLabel: { color: '#94A3B8', fontWeight: '600' },
   resumoValue: { color: '#0EA5E9', fontSize: 28, fontWeight: 'bold', marginTop: 4 },
-  footerFixed: { padding: 20, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+  footerFixed: { padding: 20, borderTopWidth: 1, borderTopColor: '#334155', backgroundColor: '#1E293B' },
   btnFinalizar: { backgroundColor: '#10B981', padding: 16, borderRadius: 12, alignItems: 'center' },
   btnFinalizarText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
 
   // Lista Cliente
-  clienteItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarText: { fontWeight: 'bold', color: '#475569' },
-  clienteNome: { fontSize: 16, fontWeight: 'bold', color: '#0F172A' },
-  clienteTel: { color: '#64748B' },
-  btnNovoCliente: { padding: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0', alignItems: 'center' },
+  clienteItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarText: { fontWeight: 'bold', color: '#FFF' },
+  clienteNome: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
+  clienteTel: { color: '#94A3B8' },
+  btnNovoCliente: { padding: 16, borderTopWidth: 1, borderTopColor: '#334155', alignItems: 'center' },
   btnNovoClienteText: { color: '#0EA5E9', fontWeight: 'bold', fontSize: 16 },
 });

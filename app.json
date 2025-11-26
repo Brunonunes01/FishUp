@@ -4,7 +4,7 @@
     "slug": "piscicultura-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.jpg",
+    "icon": "./assets/images/novo_logo.png",
     "scheme": "pisciculturaapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,18 +14,18 @@
     "android": {
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.brunonunes01.pisciculturaapp"
+      "package": "com.tiao12.pisciculturaapp"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo.jpg"
+      "favicon": "./assets/images/novo_logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.jpg",
+          "image": "./assets/images/novo_logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -40,9 +40,10 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "tiao12",
     "extra": {
       "eas": {
-        "projectId": "5e82c3d1-3eaf-48c1-8054-3307a6fe2071"
+        "projectId": "1b859941-8156-4dd1-85e9-8d6817278a5f"
       }
     }
   }
